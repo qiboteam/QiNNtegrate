@@ -104,7 +104,7 @@ if __name__ == "__main__":
     target_result, err = target_fun.integral(xmin, xmax)
     print(f"The target result for the integral of [{target_fun}] is {target_result:.4} +- {err:.4}")
 
-    # Let's see the how this did...
+    # Let's see how this did...
     observable.set_parameters(best_p)
     primitive_minus = observable.execute_with_x(xmin)
     primitive_plus = observable.execute_with_x(xmax)

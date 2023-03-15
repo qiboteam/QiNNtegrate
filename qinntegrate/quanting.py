@@ -189,15 +189,3 @@ class BaseVariationalObservable:
             res += factor * self._execute(shift)
 
         return GEN_EIGENVAL * res
-
-
-if __name__ == "__main__":
-    cc = BaseVariationalObservable()
-    # initialize with random parameters
-    aa = np.random.rand(cc.nparams)
-    # and try to evaluate for a value in x
-    cc.set_parameters(aa)
-    # res = cc.forward_pass([0.5])
-
-    aa = [_UploadedParameter(1.0, 4.0, 1, 0), _UploadedParameter(2.0, 5.0, 2, 1)]
-    bb = _recursive_shifts([aa], index=2)

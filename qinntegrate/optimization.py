@@ -5,11 +5,38 @@ import numpy as np
 from qibo.optimizers import optimize
 
 
+def mse(y, p, norm=1.0):
+    return np.mean((y - p) ** 2 / norm)
+
+
+class Loss:
+    def __init__(self, xarr, target, predictor):
+        self._target = target
+        self._predictor = predictor
+        self._xarr = xarr
+
+        self._ytrue = np.array([target(i) for i in xarr])
+        self._ynorm = np.abs(self._ytrue) + 1e-7
+
+    def __call__(self, parameters):
+        """Set the parameters in the predictor
+        and compare the results with ytrue"""
+        self._predictor.set_parameters(parameters)
+
+        # Compute the prediction for the points in x
+        pred_y = []
+        for xarr in self._xarr:
+            pred_y.append(self._predictor.forward_pass(xarr))
+        pred_y = np.array(pred_y)
+
+        return mse(pred_y, self._ytrue, norm=self._ynorm)
+
+
 def launch_optimization(
     predictor,
     target,
-    xmin=[0.0],
-    xmax=[1.0],
+    xmin=(0.0,),
+    xmax=(1.0,),
     npoints=int(5e2),
     max_iterations=100,
     max_evals=int(1e5),
@@ -28,29 +55,7 @@ def launch_optimization(
         xmax += 0.1 * xdelta
     xrand = np.random.rand(npoints, target.ndim) * (xmax - xmin) + xmin
 
-    # Now generate the target values
-    ytrue = []
-    for xarr in xrand:
-        ytrue.append(target(xarr))
-    ytrue = np.array(ytrue)
-
-    # If we don't normalize... we are (sort of) doing importance "learning"...
-    ytrue_abs = np.abs(ytrue) + 1e-6
-
-    # Build a simple loss function, we will improve later on
-    def loss(parameters):
-        # Set the parameters
-        predictor.set_parameters(parameters)
-
-        # Compute the prediction for the points in x
-        pred_y = []
-        for xarr in xrand:
-            pred_y.append(predictor.forward_pass(xarr))
-        pred_y = np.array(pred_y)
-
-        # Now compute MSE
-        mse = np.mean((pred_y - ytrue) ** 2 / ytrue_abs)
-        return mse
+    loss = Loss(xrand, target, predictor)
 
     options = {
         "verbose": -1,
@@ -61,6 +66,7 @@ def launch_optimization(
     }
 
     # And... optimize!
+    # Use whatever is the current value of the parameters as the initial point
     initial_p = predictor.parameters
     result = optimize(loss, initial_p, method="cma", options=options)
 
