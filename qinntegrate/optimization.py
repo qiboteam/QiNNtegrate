@@ -14,6 +14,7 @@ def launch_optimization(
     max_iterations=100,
     max_evals=int(1e5),
     tol_error=1e-5,
+    padding=False,
 ):
     """Receives a predictor (can be a circuit, NN, etc... which inherits from quanting.BaseVariationalObservable)
     and a target function (which inherits from target.TargetFunction) and performs the training
@@ -21,7 +22,10 @@ def launch_optimization(
     # Generate a set of random points within the integration limits
     xmin = np.array(xmin)
     xmax = np.array(xmax)
-
+    if padding:
+        xdelta = xmax - xmin
+        xmin -= 0.1 * xdelta
+        xmax += 0.1 * xdelta
     xrand = np.random.rand(npoints, target.ndim) * (xmax - xmin) + xmin
 
     # Now generate the target values
@@ -30,8 +34,8 @@ def launch_optimization(
         ytrue.append(target(xarr))
     ytrue = np.array(ytrue)
 
-    # If we don't normalize... we are (sort of) doing importance learning...
-    ytrue_abs = 1.0  # np.abs(ytrue) + 1e-6
+    # If we don't normalize... we are (sort of) doing importance "learning"...
+    ytrue_abs = np.abs(ytrue) + 1e-6
 
     # Build a simple loss function, we will improve later on
     def loss(parameters):

@@ -2,11 +2,40 @@
     Main script to launch the examples and benchmarks
 """
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
+from pathlib import Path
+
+import numpy as np
+from matplotlib import pyplot as plt
 
 from qinntegrate.target import valid_target
 from qinntegrate.optimization import launch_optimization
 from qinntegrate import quanting
+
+
+def check_qbits(var):
+    nqbit = int(var)
+    if nqbit < 2:
+        raise ArgumentTypeError(
+            "At least 2 qbits are needed in order for entanglement to be active"
+        )
+    return nqbit
+
+
+def plot_integrand(predictor, target, xmin, xmax, npoints=int(1e3)):
+    """Plot botht he predictor and the target"""
+    xlin = np.linspace(xmin, xmax, npoints)
+
+    ytrue = []
+    ypred = []
+    for xx in xlin:
+        ytrue.append(target(xx))
+        ypred.append(predictor.forward_pass(xx))
+
+    plt.plot(xlin[:, 0], ytrue, label="Target function")
+    plt.plot(xlin[:, 0], ypred, label="Simulation")
+    plt.legend()
+    plt.savefig("output.pdf")
 
 
 if __name__ == "__main__":
@@ -14,6 +43,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--xmin", help="Integration limit xi", nargs="+", type=float)
     parser.add_argument("--xmax", help="Integration limit xf", nargs="+", type=float)
+    parser.add_argument("-o", "--output", help="Output folder", type=Path, default=Path("output/"))
+    parser.add_argument("-l", "--load", help="Load initial parameters from", type=Path)
 
     target_parser = parser.add_argument_group("Target function")
     target_parser.add_argument(
@@ -30,7 +61,9 @@ if __name__ == "__main__":
 
     # Circuit parameters
     circ_parser = parser.add_argument_group("Circuit definition")
-    circ_parser.add_argument("--nqubits", help="Number of qubits for the VQE", default=3, type=int)
+    circ_parser.add_argument(
+        "--nqubits", help="Number of qubits for the VQE", default=3, type=check_qbits
+    )
     circ_parser.add_argument("--layers", help="Number of layers for the VQE", default=2, type=int)
 
     opt_parser = parser.add_argument_group("Optimization definition")
@@ -38,6 +71,9 @@ if __name__ == "__main__":
         "--maxiter", help="Maximum number of iterations", default=int(1e3), type=int
     )
     opt_parser.add_argument("--npoints", help="Training points", default=int(5e2), type=int)
+    opt_parser.add_argument(
+        "--padding", help="Train the function beyond the integration limits", action="store_true"
+    )
 
     args = parser.parse_args()
 
@@ -45,7 +81,9 @@ if __name__ == "__main__":
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
 
     # Construct the observable to be trained
-    observable = quanting.BaseVariationalObservable(nqubits=args.nqubits, nlayers=args.layers)
+    observable = quanting.BaseVariationalObservable(
+        nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim
+    )
 
     # Prepare the integration limits
     xmin = args.xmin
@@ -56,14 +94,26 @@ if __name__ == "__main__":
         xmax = [1.0] * target_fun.ndim
 
     # And... integrate!
-    best_p = launch_optimization(observable, target_fun, max_iterations=args.maxiter)
+    if args.load:
+        initial_p = np.load(args.load)
+        observable.set_parameters(initial_p)
+    best_p = launch_optimization(
+        observable, target_fun, max_iterations=args.maxiter, padding=args.padding
+    )
 
     target_result, err = target_fun.integral(xmin, xmax)
     print(f"The target result for the integral of [{target_fun}] is {target_result:.4} +- {err:.4}")
 
     # Let's see the how this did...
     observable.set_parameters(best_p)
-    primitive_minus = observable.execute(xmin)
-    primitive_plus = observable.execute(xmax)
+    primitive_minus = observable.execute_with_x(xmin)
+    primitive_plus = observable.execute_with_x(xmax)
     res = primitive_plus - primitive_minus
     print(f"And our trained result is {res:.4}")
+
+    if args.ndim == 1:
+        plot_integrand(observable, target_fun, xmin, xmax)
+
+    if args.output is not None:
+        args.output.mkdir(exist_ok=True)
+        np.save(args.output / "best_p.npy", best_p)

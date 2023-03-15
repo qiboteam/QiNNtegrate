@@ -16,7 +16,7 @@ from scipy.integrate import nquad
 
 def valid_target(val_raw):
     """Ensures that the selected function exists"""
-    available_targets = {"sin1d": Sin1d, "cos1d": Cos1d}
+    available_targets = {"sin1d": Sin1d, "cosnd": Cosnd}
     val = val_raw.lower()
     if val not in available_targets:
         ava = list(available_targets.keys())
@@ -30,7 +30,7 @@ class TargetFunction:
     max_ndim = 20
 
     def __init__(self, parameters=(), ndim=1):
-        self._parameters = parameters
+        self._parameters = np.array(parameters)
         self.ndim = ndim
         if len(parameters) > self.max_par:
             raise ValueError(f"This target function accepts a maximum of {self.max_par} parameters")
@@ -78,7 +78,23 @@ class Sin1d(TargetFunction):
         return "1d sin"
 
 
-class Cos1d(Sin1d):
+class Cosnd(TargetFunction):
+    """Cosine of polynomial in x
+    cos(a1*x1 + a2*x2 + ... + an+1)
+    """
+
+    def build(self):
+        # Use the parameters in self._parameters for the first a_n
+        # and the rest fill it with ones
+        missing_par = (self.ndim + 1) - len(self._parameters)
+        if missing_par > 0:
+            fill_one = np.ones(missing_par)
+            fill_one[-1] = 0
+            self._parameters = np.concatenate([self._parameters, fill_one])
+
     def __call__(self, xarr):
-        x = xarr[0]
-        return np.cos(self._a1 * x + self._a2)
+        arg = np.sum(np.array(xarr) * self._parameters[:-1]) + self._parameters[-1]
+        return np.cos(arg)
+
+    def __repr__(self):
+        return f"cos{self.ndim}d"
