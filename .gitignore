@@ -133,4 +133,7 @@ dmypy.json
 .dat
 outcmaes/
 *.pdf
+
+# data returned by the script
 *.npy
+args.json

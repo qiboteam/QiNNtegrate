@@ -75,7 +75,6 @@ def launch_optimization(
     else:
         result = optimize(loss, initial_p, method="cma", options=options)
 
-
     # Set the final set of parameters
     best_p = result[1]
     predictor.set_parameters(best_p)

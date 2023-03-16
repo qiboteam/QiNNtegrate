@@ -87,6 +87,7 @@ class BaseVariationalObservable:
         self._observable = None
         self._variational_params = []
         self._initial_state = initial_state
+        self._eigenfactor = GEN_EIGENVAL**ndim
 
         # Set the reuploading indexes
         self._reuploading_indexes = [[] for _ in range(ndim)]
@@ -188,4 +189,4 @@ class BaseVariationalObservable:
 
             res += factor * self._execute(shift)
 
-        return GEN_EIGENVAL * res
+        return self._eigenfactor * res

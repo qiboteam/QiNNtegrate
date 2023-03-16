@@ -16,7 +16,7 @@ from scipy.integrate import nquad
 
 def valid_target(val_raw):
     """Ensures that the selected function exists"""
-    available_targets = {"sin1d": Sin1d, "cosnd": Cosnd}
+    available_targets = {"sin1d": Sin1d, "cosnd": Cosnd, "sind": Sind}
     val = val_raw.lower()
     if val not in available_targets:
         ava = list(available_targets.keys())
@@ -98,3 +98,12 @@ class Cosnd(TargetFunction):
 
     def __repr__(self):
         return f"cos{self.ndim}d"
+
+
+class Sind(Cosnd):
+    def __call__(self, xarr):
+        arg = np.sum(np.array(xarr) * self._parameters[:-1]) + self._parameters[-1]
+        return np.sin(arg)
+
+    def __repr__(self):
+        return f"sin{self.ndim}d"

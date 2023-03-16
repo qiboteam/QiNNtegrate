@@ -1,7 +1,8 @@
 """
     Main script to launch the examples and benchmarks
 """
-
+import json
+import copy
 from argparse import ArgumentParser, ArgumentTypeError
 from pathlib import Path
 
@@ -151,4 +152,16 @@ if __name__ == "__main__":
 
     if args.output is not None:
         args.output.mkdir(exist_ok=True)
-        np.save(args.output / "best_p.npy", best_p)
+        best_p_path = args.output / "best_p.npy"
+        np.save(best_p_path, best_p)
+        # And save also the parameters that we've used!
+        arg_path = args.output / "args.json"
+        opts = copy.copy(args.__dict__)
+        # Drop what we don't need
+        opts.pop("output")
+        opts.pop("load")
+        # And change some
+        opts["target"] = str(target_fun)
+        opts["xmin"] = xmin
+        opts["xmax"] = xmax
+        json.dump(opts, arg_path.open("w", encoding="utf-8"))
