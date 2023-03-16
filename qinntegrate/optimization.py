@@ -68,7 +68,13 @@ def launch_optimization(
     # And... optimize!
     # Use whatever is the current value of the parameters as the initial point
     initial_p = predictor.parameters
-    result = optimize(loss, initial_p, method="cma", options=options)
+
+    if max_iterations == 0:
+        print("Skipping the optimization phase since max_iterations=0")
+        result = (None, initial_p)
+    else:
+        result = optimize(loss, initial_p, method="cma", options=options)
+
 
     # Set the final set of parameters
     best_p = result[1]

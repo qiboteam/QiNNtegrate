@@ -38,6 +38,35 @@ def plot_integrand(predictor, target, xmin, xmax, npoints=int(1e3)):
     plt.savefig("output.pdf")
 
 
+def _generate_limits(xmin, xmax):
+    """Generate the lists of limits to evaluate the primitive at
+    Parameters
+    ---------
+        xmin: list of inferior limits (one per dimension)
+        xmax: list of superior limits
+
+    Returns
+    -------
+        limits: list of 1d arrays with one value per dimension
+        signs: list of same size with + or -
+    """
+    limits = [np.array([])]
+    signs = [1.0]
+    for xm, xp in zip(xmin, xmax):
+        next_l = []
+        next_s = []
+        for curr_l, curr_s in zip(limits, signs):
+            next_l.append(np.concatenate([curr_l, [xm]]))
+            next_s.append(curr_s)
+
+            next_l.append(np.concatenate([curr_l, [xp]]))
+            next_s.append(-curr_s)
+        limits = next_l
+        signs = next_s
+
+    return limits, signs
+
+
 if __name__ == "__main__":
     parser = ArgumentParser()
 
@@ -97,6 +126,7 @@ if __name__ == "__main__":
     if args.load:
         initial_p = np.load(args.load)
         observable.set_parameters(initial_p)
+
     best_p = launch_optimization(
         observable, target_fun, max_iterations=args.maxiter, padding=args.padding
     )
@@ -104,11 +134,16 @@ if __name__ == "__main__":
     target_result, err = target_fun.integral(xmin, xmax)
     print(f"The target result for the integral of [{target_fun}] is {target_result:.4} +- {err:.4}")
 
-    # Let's see how this did...
+    # Let's see how this integral did
     observable.set_parameters(best_p)
-    primitive_minus = observable.execute_with_x(xmin)
-    primitive_plus = observable.execute_with_x(xmax)
-    res = primitive_plus - primitive_minus
+
+    # Prepare all combinations of limits
+    limits, signs = _generate_limits(xmin, xmax)
+
+    res = 0.0
+    for int_limit, sign in zip(limits, signs):
+        res += sign * observable.execute_with_x(int_limit)
+
     print(f"And our trained result is {res:.4}")
 
     if args.ndim == 1:
