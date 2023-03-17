@@ -119,7 +119,7 @@ class BaseVariationalObservable:
         self._circuit = circuit
 
         # Get the initial parameters
-        self._variational_params = circuit.get_parameters()
+        self._variational_params = np.array(circuit.get_parameters()).flatten()
 
     def build_observable(self):
         """Build step of the observable"""

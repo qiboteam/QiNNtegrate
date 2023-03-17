@@ -58,10 +58,10 @@ def _generate_limits(xmin, xmax):
         next_s = []
         for curr_l, curr_s in zip(limits, signs):
             next_l.append(np.concatenate([curr_l, [xm]]))
-            next_s.append(curr_s)
+            next_s.append(-curr_s)
 
             next_l.append(np.concatenate([curr_l, [xp]]))
-            next_s.append(-curr_s)
+            next_s.append(curr_s)
         limits = next_l
         signs = next_s
 
@@ -164,4 +164,6 @@ if __name__ == "__main__":
         opts["target"] = str(target_fun)
         opts["xmin"] = xmin
         opts["xmax"] = xmax
-        json.dump(opts, arg_path.open("w", encoding="utf-8"))
+        opts["FinalResult"] = res
+        opts["TargetResult"] = target_result
+        json.dump(opts, arg_path.open("w", encoding="utf-8"), indent=True)
