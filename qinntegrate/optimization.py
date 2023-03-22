@@ -10,13 +10,15 @@ def mse(y, p, norm=1.0):
 
 
 class Loss:
-    def __init__(self, xarr, target, predictor):
+    def __init__(self, xarr, target, predictor, normalize=True):
         self._target = target
         self._predictor = predictor
         self._xarr = xarr
 
         self._ytrue = np.array([target(i) for i in xarr])
-        self._ynorm = np.abs(self._ytrue) + 1e-7
+        self._ynorm = 1.0
+        if normalize:
+            self._ynorm = np.abs(self._ytrue) + 1e-7
 
     def __call__(self, parameters):
         """Set the parameters in the predictor
@@ -42,6 +44,7 @@ def launch_optimization(
     max_evals=int(1e5),
     tol_error=1e-5,
     padding=False,
+    normalize=True,
 ):
     """Receives a predictor (can be a circuit, NN, etc... which inherits from quanting.BaseVariationalObservable)
     and a target function (which inherits from target.TargetFunction) and performs the training
@@ -55,7 +58,7 @@ def launch_optimization(
         xmax += 0.1 * xdelta
     xrand = np.random.rand(npoints, target.ndim) * (xmax - xmin) + xmin
 
-    loss = Loss(xrand, target, predictor)
+    loss = Loss(xrand, target, predictor, normalize=normalize)
 
     options = {
         "verbose": -1,

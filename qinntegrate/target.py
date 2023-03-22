@@ -16,7 +16,7 @@ from scipy.integrate import nquad
 
 def valid_target(val_raw):
     """Ensures that the selected function exists"""
-    available_targets = {"sin1d": Sin1d, "cosnd": Cosnd, "sind": Sind}
+    available_targets = {"sin1d": Sin1d, "cosnd": Cosnd, "sind": Sind, "lepage": LepageTest}
     val = val_raw.lower()
     if val not in available_targets:
         ava = list(available_targets.keys())
@@ -38,6 +38,7 @@ class TargetFunction:
             raise ValueError(
                 f"This target function accepts a maximum of {self.max_ndim} to inetegate"
             )
+        print(f"Preparing {self} with d={self.ndim}")
 
         self.build()
 
@@ -55,7 +56,7 @@ class TargetFunction:
         return nquad(fun, ranges)
 
     def __repr__(self):
-        return "Target Function"
+        return self.__class__.__name__
 
 
 class Sin1d(TargetFunction):
@@ -107,3 +108,23 @@ class Sind(Cosnd):
 
     def __repr__(self):
         return f"sin{self.ndim}d"
+
+
+class LepageTest(TargetFunction):
+    """Function used in Lepage's Vegas paper https://inspirehep.net/files/6f1e72c3ed9265314819355759f96e54 """
+
+    max_par = 1
+
+    def build(self):
+        a = 0.1
+        if self._parameters:
+            a = self._parameters[0]
+
+        self._a2 = np.power(a, 2)
+        self._pref = np.power(1.0 / a / np.sqrt(np.pi), self.ndim)
+
+    def __call__(self, xarr):
+        res = 0
+        for x in xarr:
+            res += np.power(x - 0.5, 2) / self._a2
+        return self._pref * np.exp(-res)

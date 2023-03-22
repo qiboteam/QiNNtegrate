@@ -98,11 +98,14 @@ if __name__ == "__main__":
 
     opt_parser = parser.add_argument_group("Optimization definition")
     opt_parser.add_argument(
-        "--maxiter", help="Maximum number of iterations", default=int(1e3), type=int
+        "--maxiter", help="Maximum number of iterations (default 1000)", default=int(1e3), type=int
     )
-    opt_parser.add_argument("--npoints", help="Training points", default=int(5e2), type=int)
+    opt_parser.add_argument("--npoints", help="Training points (default 500)", default=int(5e2), type=int)
     opt_parser.add_argument(
         "--padding", help="Train the function beyond the integration limits", action="store_true"
+    )
+    opt_parser.add_argument(
+        "--absolute", help="Don't normalize MSE by the size of the integrand", action="store_true"
     )
 
     args = parser.parse_args()
@@ -129,7 +132,11 @@ if __name__ == "__main__":
         observable.set_parameters(initial_p)
 
     best_p = launch_optimization(
-        observable, target_fun, max_iterations=args.maxiter, padding=args.padding
+        observable,
+        target_fun,
+        max_iterations=args.maxiter,
+        padding=args.padding,
+        normalize=not args.absolute,
     )
 
     target_result, err = target_fun.integral(xmin, xmax)
