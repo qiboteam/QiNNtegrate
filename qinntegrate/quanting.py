@@ -85,7 +85,6 @@ class BaseVariationalObservable:
         self._nlayers = nlayers
         self._circuit = None
         self._observable = None
-        self._variational_params = []
         self._initial_state = initial_state
         self._eigenfactor = GEN_EIGENVAL**ndim
 
@@ -99,9 +98,14 @@ class BaseVariationalObservable:
         self.build_circuit()
         self.build_observable()
 
+        # setting initial random parameters
+        self.set_parameters(np.random.randn(self.nparams))
+        self._variational_params = self._get_variational_params()
+
     def build_circuit(self):
         """Build step of the circuit"""
         circuit = models.Circuit(self._nqubits)
+
         for i in range(self._nlayers):
             # In this circuit, the reuploading indexes
             if i < self._ndim:
@@ -111,15 +115,17 @@ class BaseVariationalObservable:
             circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
             circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
             circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 2)))
-            circuit.add((gates.RX(q, theta=0) for q in range(self._nqubits)))
             circuit.add((gates.CZ(q, q + 1) for q in range(1, self._nqubits - 2, 2)))
+            circuit.add((gates.RX(q, theta=0) for q in range(self._nqubits)))
             circuit.add(gates.CZ(0, self._nqubits - 1))
 
         circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
         self._circuit = circuit
 
-        # Get the initial parameters
-        self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+    def _get_variational_params(self):
+        """Return variational parameters of the circuit."""
+        return np.array(self._circuit.get_parameters()).flatten()
 
     def build_observable(self):
         """Build step of the observable"""
@@ -190,3 +196,33 @@ class BaseVariationalObservable:
             res += factor * self._execute(shift)
 
         return self._eigenfactor * res
+
+
+class ReuploadingAnsatz(BaseVariationalObservable):
+    """Generates a variational quantum circuit in which we upload all the variables
+    in each layer."""
+
+    def __init__(self, nlayers, ndim=1, initial_state=None):
+        """In this specific model the number of qubits is equal to the dimensionality
+        of the problem."""
+           
+        nqubits = ndim
+
+        # inheriting the BaseModel features
+        super().__init__(nqubits, nlayers, ndim=1, initial_state=None)        
+        
+    
+    def build_circuit(self):
+        """Builds the reuploading ansatz for the circuit"""
+        circuit = models.Circuit(self._nqubits)
+        for l in range(self._nlayers):
+            for q in range(self._nqubits):
+                circuit.add(gates.H(q))
+                circuit.add(gates.RY(q=q, theta=0))
+                circuit.add(gates.RZ(q=q, theta=0))
+                if(self._nqubits > 1 and q > 1):
+                    circuit.add(gates.CZ(q-1, q))
+        circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
+        circuit.add((gates.M(q) for q in range(self._nqubits)))
+
+        self._circuit = circuit
