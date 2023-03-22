@@ -150,6 +150,9 @@ if __name__ == "__main__":
         help="Don't normalize MSE by the size of the integrand",
         action="store_true",
     )
+    opt_parser.add_argument(
+        "--optimizer", help="Chosen optimizer; available 'cma' and 'BFGS'.", default='cma', type=str
+    )
 
     args = parser.parse_args()
 
@@ -182,6 +185,7 @@ if __name__ == "__main__":
         observable,
         target_fun,
         max_iterations=args.maxiter,
+        method=args.optimizer,
         padding=args.padding,
         normalize=not args.absolute,
     )

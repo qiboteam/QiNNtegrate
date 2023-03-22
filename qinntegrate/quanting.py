@@ -100,6 +100,10 @@ class BaseVariationalObservable:
     def __repr__(self):
         return self.__class__.__name__
 
+        # setting initial random parameters
+        self._nparams = len(self._variational_params)
+        self.set_parameters(np.random.randn(self._nparams))
+
     def build_circuit(self):
         """Build step of the circuit"""
         # In this basic variational observable each x will be updated at a different layers

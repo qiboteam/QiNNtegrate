@@ -45,6 +45,7 @@ def launch_optimization(
     tol_error=1e-5,
     padding=False,
     normalize=True,
+    method="cma",
 ):
     """Receives a predictor (can be a circuit, NN, etc... which inherits from quanting.BaseVariationalObservable)
     and a target function (which inherits from target.TargetFunction) and performs the training
@@ -60,23 +61,39 @@ def launch_optimization(
 
     loss = Loss(xrand, target, predictor, normalize=normalize)
 
-    options = {
-        "verbose": -1,
-        "tolfun": 1e-12,
-        "ftarget": tol_error,  # Target error
-        "maxiter": max_iterations,  # Maximum number of iterations
-        "maxfeval": max_evals,  # Maximum number of function evaluations
-    }
-
     # And... optimize!
     # Use whatever is the current value of the parameters as the initial point
     initial_p = predictor.parameters
 
+
     if max_iterations == 0:
         print("Skipping the optimization phase since max_iterations=0")
         result = (None, initial_p)
+
     else:
-        result = optimize(loss, initial_p, method="cma", options=options)
+
+        if method == 'cma':
+
+            options = {
+                "verbose": -1,
+                "tolfun": 1e-12,
+                "ftarget": tol_error,  # Target error
+                "maxiter": max_iterations,  # Maximum number of iterations
+                "maxfeval": max_evals,  # Maximum number of function evaluations
+            }
+
+            result = optimize(loss, initial_p, method="cma", options=options)
+
+        elif method == 'BFGS':
+
+            print('initial parameters: ', initial_p)
+
+            options = {
+                "disp" : True,
+            }
+
+            result = optimize(loss, initial_p, method="BFGS", options=options)
+
 
     # Set the final set of parameters
     best_p = result[1]
