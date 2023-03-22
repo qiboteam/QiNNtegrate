@@ -85,6 +85,7 @@ class BaseVariationalObservable:
         self._nlayers = nlayers
         self._circuit = None
         self._observable = None
+        self._variational_params = []
         self._initial_state = initial_state
         self._eigenfactor = GEN_EIGENVAL**ndim
 
@@ -97,12 +98,11 @@ class BaseVariationalObservable:
 
         self.build_circuit()
         self.build_observable()
-
-        # setting initial random parameters
+ 
+        # Initial random parameters
         self.set_parameters(np.random.randn(self.nparams))
-        self._variational_params = self._get_variational_params()
-
-        #visualizing the model
+ 
+        # Visualizing the model
         self.print_model()
 
     def build_circuit(self):
@@ -125,13 +125,12 @@ class BaseVariationalObservable:
         circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
         self._circuit = circuit
 
-    def print_model(self):
-        print("Circuit drawing:\n", self._circuit.draw(), "\n")
-        print("Circuit summary:\n", self._circuit.summary())
+        # Get the initial parameters
+        self._variational_params = np.array(circuit.get_parameters()).flatten()
 
-    def _get_variational_params(self):
-        """Return variational parameters of the circuit."""
-        return np.array(self._circuit.get_parameters()).flatten()
+    def print_model(self):
+        print("\nCircuit drawing:\n", self._circuit.draw(), "\n")
+        print("Circuit summary:\n", self._circuit.summary(), "\n")
 
     def build_observable(self):
         """Build step of the observable"""
@@ -231,3 +230,6 @@ class ReuploadingAnsatz(BaseVariationalObservable):
         circuit.add((gates.M(q) for q in range(self._nqubits)))
 
         self._circuit = circuit
+
+        # Get the initial parameters
+        self._variational_params = np.array(circuit.get_parameters()).flatten()
