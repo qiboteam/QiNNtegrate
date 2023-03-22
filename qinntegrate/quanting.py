@@ -118,8 +118,8 @@ class BaseVariationalObservable:
             circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
             circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
             circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 2)))
-            circuit.add((gates.CZ(q, q + 1) for q in range(1, self._nqubits - 2, 2)))
             circuit.add((gates.RX(q, theta=0) for q in range(self._nqubits)))
+            circuit.add((gates.CZ(q, q + 1) for q in range(1, self._nqubits - 2, 2)))
             circuit.add(gates.CZ(0, self._nqubits - 1))
 
         circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
