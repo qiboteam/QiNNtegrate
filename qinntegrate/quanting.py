@@ -102,6 +102,9 @@ class BaseVariationalObservable:
         self.set_parameters(np.random.randn(self.nparams))
         self._variational_params = self._get_variational_params()
 
+        #visualizing the model
+        self.print_model()
+
     def build_circuit(self):
         """Build step of the circuit"""
         circuit = models.Circuit(self._nqubits)
@@ -122,6 +125,9 @@ class BaseVariationalObservable:
         circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
         self._circuit = circuit
 
+    def print_model(self):
+        print("Circuit drawing:\n", self._circuit.draw(), "\n")
+        print("Circuit summary:\n", self._circuit.summary())
 
     def _get_variational_params(self):
         """Return variational parameters of the circuit."""
@@ -215,13 +221,12 @@ class ReuploadingAnsatz(BaseVariationalObservable):
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
         circuit = models.Circuit(self._nqubits)
+        circuit.add((gates.H(q) for q in range(self._nqubits)))
         for l in range(self._nlayers):
-            for q in range(self._nqubits):
-                circuit.add(gates.H(q))
-                circuit.add(gates.RY(q=q, theta=0))
-                circuit.add(gates.RZ(q=q, theta=0))
-                if(self._nqubits > 1 and q > 1):
-                    circuit.add(gates.CZ(q-1, q))
+            circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
+            circuit.add((gates.RZ(q, theta=0) for q in range(self._nqubits)))
+            circuit.add((gates.CZ(q, q+1) for q in range(0, self._nqubits-1, 1)))
+            circuit.add((gates.CZ(self._nqubits -1 , 0)))
         circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
         circuit.add((gates.M(q) for q in range(self._nqubits)))
 
