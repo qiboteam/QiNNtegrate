@@ -91,6 +91,13 @@ if __name__ == "__main__":
 
     # Circuit parameters
     circ_parser = parser.add_argument_group("Circuit definition")
+    # Circuit ansatz
+    circ_parser.add_argument(
+        "--ansatz", 
+        help="Circuit ansatz, please choose between 'base' and 'reuploading' (default 'Base')", 
+        default="base", 
+        type=str)
+    # Circuit features
     circ_parser.add_argument(
         "--nqubits", help="Number of qubits for the VQE", default=3, type=check_qbits
     )
@@ -114,9 +121,16 @@ if __name__ == "__main__":
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
 
     # Construct the observable to be trained
-    observable = quanting.BaseVariationalObservable(
-        nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim
-    )
+    # it can be chosen between 'base' and 'reuploading'
+    if args.ansatz == "base":
+        observable = quanting.BaseVariationalObservable(
+            nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim
+        )
+    elif args.ansatz == "reuploading":
+        observable = quanting.ReuploadingAnsatz(
+            nlayers=args.layers, ndim=args.ndim
+        )
+    
 
     # Prepare the integration limits
     xmin = args.xmin
