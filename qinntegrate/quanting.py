@@ -98,10 +98,6 @@ class BaseVariationalObservable:
 
         self.build_circuit()
         self.build_observable()
- 
-        # Initial random parameters
-        self.set_parameters(np.random.randn(self.nparams))
- 
         # Visualizing the model
         self.print_model()
 
@@ -129,8 +125,9 @@ class BaseVariationalObservable:
         self._variational_params = np.array(circuit.get_parameters()).flatten()
 
     def print_model(self):
-        print("\nCircuit drawing:\n", self._circuit.draw(), "\n")
-        print("Circuit summary:\n", self._circuit.summary(), "\n")
+        """Print a model of the circuit""""
+        print(f"\nCircuit drawing: {self._circuit.draw()}\n")
+        print(f"Circuit summary:\n{self._circuit.summary()}\n")
 
     def build_observable(self):
         """Build step of the observable"""
@@ -210,11 +207,10 @@ class ReuploadingAnsatz(BaseVariationalObservable):
     def __init__(self, nlayers, ndim=1, initial_state=None):
         """In this specific model the number of qubits is equal to the dimensionality
         of the problem."""
-           
-        nqubits = ndim
-
+        if nqubits != ndim:
+            raise ValueError("For ReuploadingAnsatz the number of qubits must be equal to the number of dimensions")
         # inheriting the BaseModel features
-        super().__init__(nqubits, nlayers, ndim=1, initial_state=None)        
+        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)        
         
     
     def build_circuit(self):
