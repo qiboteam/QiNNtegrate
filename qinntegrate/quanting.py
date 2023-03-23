@@ -125,7 +125,7 @@ class BaseVariationalObservable:
         self._variational_params = np.array(circuit.get_parameters()).flatten()
 
     def print_model(self):
-        """Print a model of the circuit""""
+        """Print a model of the circuit"""
         print(f"\nCircuit drawing: {self._circuit.draw()}\n")
         print(f"Circuit summary:\n{self._circuit.summary()}\n")
 
