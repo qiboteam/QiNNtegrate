@@ -91,10 +91,6 @@ class BaseVariationalObservable:
 
         # Set the reuploading indexes
         self._reuploading_indexes = [[] for _ in range(ndim)]
-        # In this basic variational observable each x will be updated at a different layers
-        # therefore the number of layers needs to be at least equal to the number of dimensions
-        if nlayers < ndim:
-            raise ValueError("BaseVariationalObservable needs at least a layer per dimension")
 
         self.build_circuit()
         self.build_observable()
@@ -104,6 +100,12 @@ class BaseVariationalObservable:
 
     def build_circuit(self):
         """Build step of the circuit"""
+        
+        # In this basic variational observable each x will be updated at a different layers
+        # therefore the number of layers needs to be at least equal to the number of dimensions
+        if self._nlayers < self._ndim:
+            raise ValueError("BaseVariationalObservable needs at least a layer per dimension")
+        
         circuit = models.Circuit(self._nqubits)
 
         for i in range(self._nlayers):
