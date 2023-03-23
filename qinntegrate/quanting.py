@@ -100,6 +100,7 @@ class BaseVariationalObservable:
         self.build_observable()
         # Visualizing the model
         self.print_model()
+        print(self._reuploading_indexes)
 
     def build_circuit(self):
         """Build step of the circuit"""
@@ -126,7 +127,7 @@ class BaseVariationalObservable:
 
     def print_model(self):
         """Print a model of the circuit"""
-        print(f"\nCircuit drawing: {self._circuit.draw()}\n")
+        print(f"\nCircuit drawing:\n{self._circuit.draw()}\n")
         print(f"Circuit summary:\n{self._circuit.summary()}\n")
 
     def build_observable(self):
@@ -204,7 +205,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
     """Generates a variational quantum circuit in which we upload all the variables
     in each layer."""
 
-    def __init__(self, nlayers, ndim=1, initial_state=None):
+    def __init__(self, nqubits, nlayers, ndim=1, initial_state=None):
         """In this specific model the number of qubits is equal to the dimensionality
         of the problem."""
         if nqubits != ndim:
@@ -234,7 +235,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
             for q in range(self._nqubits):
                 self._reuploading_indexes[q].append(index + q)
                 # we must jump the indices not affected by x
-                index += 2*self._ndim
+            index += 2*self._ndim
         # final rotations
         circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
         # measurement gates
