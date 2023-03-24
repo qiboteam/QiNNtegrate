@@ -73,9 +73,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--xmin", help="Integration limit xi", nargs="+", type=float)
     parser.add_argument("--xmax", help="Integration limit xf", nargs="+", type=float)
-    parser.add_argument(
-        "-o", "--output", help="Output folder", type=Path, default=Path("output/")
-    )
+    parser.add_argument("-o", "--output", help="Output folder", type=Path, default=Path("output/"))
     parser.add_argument("-l", "--load", help="Load initial parameters from", type=Path)
 
     target_parser = parser.add_argument_group("Target function")
@@ -92,9 +90,7 @@ if __name__ == "__main__":
         type=float,
         default=(),
     )
-    target_parser.add_argument(
-        "--ndim", help="Number of dimensions", type=int, default=1
-    )
+    target_parser.add_argument("--ndim", help="Number of dimensions", type=int, default=1)
 
     # Circuit parameters
     circ_parser = parser.add_argument_group("Circuit definition")
@@ -106,12 +102,8 @@ if __name__ == "__main__":
         type=str,
     )
     # Circuit features
-    circ_parser.add_argument(
-        "--nqubits", help="Number of qubits for the VQE", default=3, type=int
-    )
-    circ_parser.add_argument(
-        "--layers", help="Number of layers for the VQE", default=2, type=int
-    )
+    circ_parser.add_argument("--nqubits", help="Number of qubits for the VQE", default=3, type=int)
+    circ_parser.add_argument("--layers", help="Number of layers for the VQE", default=2, type=int)
 
     opt_parser = parser.add_argument_group("Optimization definition")
     opt_parser.add_argument(
@@ -173,9 +165,7 @@ if __name__ == "__main__":
     )
 
     target_result, err = target_fun.integral(xmin, xmax)
-    print(
-        f"The target result for the integral of [{target_fun}] is {target_result:.4} +- {err:.4}"
-    )
+    print(f"The target result for the integral of [{target_fun}] is {target_result:.4} +- {err:.4}")
 
     # Let's see how this integral did
     observable.set_parameters(best_p)

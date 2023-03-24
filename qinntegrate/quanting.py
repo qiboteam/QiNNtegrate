@@ -102,9 +102,7 @@ class BaseVariationalObservable:
         # In this basic variational observable each x will be updated at a different layers
         # therefore the number of layers needs to be at least equal to the number of dimensions
         if self._nlayers < self._ndim:
-            raise ValueError(
-                "BaseVariationalObservable needs at least a layer per dimension"
-            )
+            raise ValueError("BaseVariationalObservable needs at least a layer per dimension")
 
         circuit = models.Circuit(self._nqubits)
 
@@ -181,9 +179,7 @@ class BaseVariationalObservable:
         They only get burned into the circuit when the forward pass is called
         """
         if len(new_parameters) != self.nparams:
-            raise ValueError(
-                "Trying to set more parameters than those allowed by the circuit"
-            )
+            raise ValueError("Trying to set more parameters than those allowed by the circuit")
         self._variational_params = new_parameters
 
     def forward_pass(self, xarr):
@@ -237,9 +233,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
                 self._reuploading_indexes[q].append(index + q)
             # if nqubits > 1 we build entanglement
             if self._nqubits > 1:
-                circuit.add(
-                    (gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1))
-                )
+                circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1)))
                 circuit.add((gates.CZ(self._nqubits - 1, 0)))
             # we must jump the indices not affected by x
             index += 3 * self._ndim

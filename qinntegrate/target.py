@@ -25,9 +25,7 @@ def valid_target(val_raw):
     val = val_raw.lower()
     if val not in available_targets:
         ava = list(available_targets.keys())
-        raise ArgumentTypeError(
-            f"Target {val_raw} not allowed, allowed targets are {ava}"
-        )
+        raise ArgumentTypeError(f"Target {val_raw} not allowed, allowed targets are {ava}")
 
     return available_targets[val]
 
@@ -40,9 +38,7 @@ class TargetFunction:
         self._parameters = np.array(parameters)
         self.ndim = ndim
         if len(parameters) > self.max_par:
-            raise ValueError(
-                f"This target function accepts a maximum of {self.max_par} parameters"
-            )
+            raise ValueError(f"This target function accepts a maximum of {self.max_par} parameters")
         if ndim > self.ndim:
             raise ValueError(
                 f"This target function accepts a maximum of {self.max_ndim} to inetegate"
