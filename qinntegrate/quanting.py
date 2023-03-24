@@ -95,7 +95,7 @@ class BaseVariationalObservable:
         self.build_circuit()
         self.build_observable()
         # Visualizing the model
-        self.print_model()
+        self.print_model()              
 
     def build_circuit(self):
         """Build step of the circuit"""
@@ -225,19 +225,20 @@ class ReuploadingAnsatz(BaseVariationalObservable):
         circuit.add((gates.H(q) for q in range(self._nqubits)))
         # then we add parametric gates
         for l in range(self._nlayers):
-            circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
-            circuit.add((gates.RZ(q, theta=0) for q in range(self._nqubits)))
+            for q in range(self._nqubits):
+                circuit.add(gates.RY(q, theta=0))
+                circuit.add(gates.RY(q, theta=0))
+                circuit.add(gates.RZ(q, theta=0))
+                self._reuploading_indexes[q].append(index + q)
             # if nqubits > 1 we build entanglement
             if (self._nqubits > 1):
                 circuit.add((gates.CZ(q, q+1) for q in range(0, self._nqubits-1, 1)))
                 circuit.add((gates.CZ(self._nqubits-1, 0)))
-            # filling the reuploading indices with the target rotations 
-            for q in range(self._nqubits):
-                self._reuploading_indexes[q].append(index + q)
-                # we must jump the indices not affected by x
-            index += 2*self._ndim
-        # final rotations
-        circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
+            # we must jump the indices not affected by x
+            index += 3*self._ndim
+        # final rotation only with more than 1 qubit
+        if (self._nqubits > 1):
+            circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
         # measurement gates
         circuit.add((gates.M(q) for q in range(self._nqubits)))
 
