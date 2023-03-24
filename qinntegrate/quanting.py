@@ -96,11 +96,9 @@ class BaseVariationalObservable:
         self.build_observable()
         # Visualizing the model
         self.print_model()
-        print(self._reuploading_indexes)
 
     def build_circuit(self):
         """Build step of the circuit"""
-        
         # In this basic variational observable each x will be updated at a different layers
         # therefore the number of layers needs to be at least equal to the number of dimensions
         if self._nlayers < self._ndim:
