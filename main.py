@@ -102,7 +102,7 @@ if __name__ == "__main__":
         type=str,
     )
     # Circuit features
-    circ_parser.add_argument("--nqubits", help="Number of qubits for the VQE", default=3, type=int)
+    circ_parser.add_argument("--nqubits", help="Number of qubits for the VQE", default=3, type=check_qbits)
     circ_parser.add_argument("--layers", help="Number of layers for the VQE", default=2, type=int)
 
     opt_parser = parser.add_argument_group("Optimization definition")
@@ -134,7 +134,6 @@ if __name__ == "__main__":
     # Construct the observable to be trained
     # it can be chosen between 'base' and 'reuploading'
     if args.ansatz == "base":
-        check_qbits(args.nqubits)
         observable = quanting.BaseVariationalObservable(
             nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim
         )
