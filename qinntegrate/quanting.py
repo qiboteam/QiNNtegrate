@@ -230,7 +230,8 @@ class ReuploadingAnsatz(BaseVariationalObservable):
                 circuit.add(gates.RY(q, theta=0))
                 circuit.add(gates.RY(q, theta=0))
                 circuit.add(gates.RZ(q, theta=0))
-                self._reuploading_indexes[q].append(index + q)
+                curr_idx = len(circuit.get_parameters())
+                self._reuploading_indexes[q].append(curr_idx)
             # if nqubits > 1 we build entanglement
             if self._nqubits > 1:
                 circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1)))
