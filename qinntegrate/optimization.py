@@ -36,7 +36,7 @@ class Loss:
 
 class SimAnnealer():
 
-    def __init__(self, predictor, betai=1, betaf=500, nsteps=500, delta=0.075):
+    def __init__(self, predictor, betai=1, betaf=500, nsteps=500, delta=0.5):
         """Simulated annealing implementation for VQCs model optimization"""
 
         from copy import deepcopy
@@ -169,7 +169,7 @@ def launch_optimization(
         elif method == 'annealing':
             
             simann = SimAnnealer(predictor)
-            params = simann.cooling(xrand, target, normalize)
+            params = simann.cooling(xrand, target, normalize, nprint=1)
 
         # end of the time tracking
         end = time.time()
