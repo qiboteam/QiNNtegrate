@@ -244,7 +244,8 @@ class ReuploadingAnsatz(BaseVariationalObservable):
             # if nqubits > 1 we build entanglement
             if self._nqubits > 1:
                 circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1)))
-                circuit.add((gates.CZ(self._nqubits - 1, 0)))
+                if self._nqubits > 2:
+                    circuit.add((gates.CZ(self._nqubits - 1, 0)))
         # final rotation only with more than 1 qubit
         if self._nqubits > 1:
             circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
