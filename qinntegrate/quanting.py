@@ -219,13 +219,11 @@ class ReuploadingAnsatz(BaseVariationalObservable):
         """Builds the reuploading ansatz for the circuit"""
 
         circuit = models.Circuit(self._nqubits)
-        # index will keep track of the reuploadings
-        index = 0
 
         # At first we build up superposition for each qubit
         circuit.add((gates.H(q) for q in range(self._nqubits)))
         # then we add parametric gates
-        for l in range(self._nlayers):
+        for _ in range(self._nlayers):
             for q in range(self._nqubits):
                 circuit.add(gates.RY(q, theta=0))
                 circuit.add(gates.RY(q, theta=0))
@@ -236,8 +234,6 @@ class ReuploadingAnsatz(BaseVariationalObservable):
             if self._nqubits > 1:
                 circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1)))
                 circuit.add((gates.CZ(self._nqubits - 1, 0)))
-            # we must jump the indices not affected by x
-            index += 3 * self._ndim
         # final rotation only with more than 1 qubit
         if self._nqubits > 1:
             circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
