@@ -16,7 +16,12 @@ from scipy.integrate import nquad
 
 def valid_target(val_raw):
     """Ensures that the selected function exists"""
-    available_targets = {"sin1d": Sin1d, "cosnd": Cosnd, "sind": Sind, "lepage": LepageTest}
+    available_targets = {
+        "sin1d": Sin1d,
+        "cosnd": Cosnd,
+        "sind": Sind,
+        "lepage": LepageTest,
+    }
     val = val_raw.lower()
     if val not in available_targets:
         ava = list(available_targets.keys())
@@ -111,7 +116,7 @@ class Sind(Cosnd):
 
 
 class LepageTest(TargetFunction):
-    """Function used in Lepage's Vegas paper https://inspirehep.net/files/6f1e72c3ed9265314819355759f96e54 """
+    """Function used in Lepage's Vegas paper https://inspirehep.net/files/6f1e72c3ed9265314819355759f96e54"""
 
     max_par = 1
 

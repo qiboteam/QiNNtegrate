@@ -78,7 +78,10 @@ if __name__ == "__main__":
 
     target_parser = parser.add_argument_group("Target function")
     target_parser.add_argument(
-        "--target", help="Select target function", type=valid_target, default=valid_target("sin1d")
+        "--target",
+        help="Select target function",
+        type=valid_target,
+        default=valid_target("sin1d"),
     )
     target_parser.add_argument(
         "--parameters",
@@ -91,21 +94,36 @@ if __name__ == "__main__":
 
     # Circuit parameters
     circ_parser = parser.add_argument_group("Circuit definition")
+    # Circuit ansatz
     circ_parser.add_argument(
-        "--nqubits", help="Number of qubits for the VQE", default=3, type=check_qbits
+        "--ansatz",
+        help="Circuit ansatz, please choose between 'base' and 'reuploading' (default 'Base')",
+        default="base",
+        type=str,
     )
+    # Circuit features
+    circ_parser.add_argument("--nqubits", help="Number of qubits for the VQE", default=3, type=check_qbits)
     circ_parser.add_argument("--layers", help="Number of layers for the VQE", default=2, type=int)
 
     opt_parser = parser.add_argument_group("Optimization definition")
     opt_parser.add_argument(
-        "--maxiter", help="Maximum number of iterations (default 1000)", default=int(1e3), type=int
+        "--maxiter",
+        help="Maximum number of iterations (default 1000)",
+        default=int(1e3),
+        type=int,
     )
-    opt_parser.add_argument("--npoints", help="Training points (default 500)", default=int(5e2), type=int)
     opt_parser.add_argument(
-        "--padding", help="Train the function beyond the integration limits", action="store_true"
+        "--npoints", help="Training points (default 500)", default=int(5e2), type=int
     )
     opt_parser.add_argument(
-        "--absolute", help="Don't normalize MSE by the size of the integrand", action="store_true"
+        "--padding",
+        help="Train the function beyond the integration limits",
+        action="store_true",
+    )
+    opt_parser.add_argument(
+        "--absolute",
+        help="Don't normalize MSE by the size of the integrand",
+        action="store_true",
     )
 
     args = parser.parse_args()
@@ -114,9 +132,15 @@ if __name__ == "__main__":
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
 
     # Construct the observable to be trained
-    observable = quanting.BaseVariationalObservable(
-        nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim
-    )
+    # it can be chosen between 'base' and 'reuploading'
+    if args.ansatz == "base":
+        observable = quanting.BaseVariationalObservable(
+            nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim
+        )
+    elif args.ansatz == "reuploading":
+        observable = quanting.ReuploadingAnsatz(
+            nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim
+        )
 
     # Prepare the integration limits
     xmin = args.xmin

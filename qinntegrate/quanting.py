@@ -91,17 +91,21 @@ class BaseVariationalObservable:
 
         # Set the reuploading indexes
         self._reuploading_indexes = [[] for _ in range(ndim)]
-        # In this basic variational observable each x will be updated at a different layers
-        # therefore the number of layers needs to be at least equal to the number of dimensions
-        if nlayers < ndim:
-            raise ValueError("BaseVariationalObservable needs at least a layer per dimension")
 
         self.build_circuit()
         self.build_observable()
+        # Visualizing the model
+        self.print_model()
 
     def build_circuit(self):
         """Build step of the circuit"""
+        # In this basic variational observable each x will be updated at a different layers
+        # therefore the number of layers needs to be at least equal to the number of dimensions
+        if self._nlayers < self._ndim:
+            raise ValueError("BaseVariationalObservable needs at least a layer per dimension")
+
         circuit = models.Circuit(self._nqubits)
+
         for i in range(self._nlayers):
             # In this circuit, the reuploading indexes
             if i < self._ndim:
@@ -120,6 +124,11 @@ class BaseVariationalObservable:
 
         # Get the initial parameters
         self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+    def print_model(self):
+        """Print a model of the circuit"""
+        print(f"\nCircuit drawing:\n{self._circuit.draw()}\n")
+        print(f"Circuit summary:\n{self._circuit.summary()}\n")
 
     def build_observable(self):
         """Build step of the observable"""
@@ -190,3 +199,48 @@ class BaseVariationalObservable:
             res += factor * self._execute(shift)
 
         return self._eigenfactor * res
+
+
+class ReuploadingAnsatz(BaseVariationalObservable):
+    """Generates a variational quantum circuit in which we upload all the variables
+    in each layer."""
+
+    def __init__(self, nqubits, nlayers, ndim=1, initial_state=None):
+        """In this specific model the number of qubits is equal to the dimensionality
+        of the problem."""
+        if nqubits != ndim:
+            raise ValueError(
+                "For ReuploadingAnsatz the number of qubits must be equal to the number of dimensions"
+            )
+        # inheriting the BaseModel features
+        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+
+    def build_circuit(self):
+        """Builds the reuploading ansatz for the circuit"""
+
+        circuit = models.Circuit(self._nqubits)
+
+        # At first we build up superposition for each qubit
+        circuit.add((gates.H(q) for q in range(self._nqubits)))
+        # then we add parametric gates
+        for _ in range(self._nlayers):
+            for q in range(self._nqubits):
+                circuit.add(gates.RY(q, theta=0))
+                circuit.add(gates.RY(q, theta=0))
+                circuit.add(gates.RZ(q, theta=0))
+                curr_idx = len(circuit.get_parameters())
+                self._reuploading_indexes[q].append(curr_idx)
+            # if nqubits > 1 we build entanglement
+            if self._nqubits > 1:
+                circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1)))
+                circuit.add((gates.CZ(self._nqubits - 1, 0)))
+        # final rotation only with more than 1 qubit
+        if self._nqubits > 1:
+            circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
+        # measurement gates
+        circuit.add((gates.M(q) for q in range(self._nqubits)))
+
+        self._circuit = circuit
+
+        # Get the initial parameters
+        self._variational_params = np.array(circuit.get_parameters()).flatten()
