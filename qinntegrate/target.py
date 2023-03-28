@@ -9,25 +9,10 @@ r"""
     integral(self, [xmin1, xmin2, ..., xminn], [xmax1, xmax2, ..., xmaxn]) -> \Int_{\vec{xmin}}^{\vec{xmax}} dxf(x)
 """
 from abc import abstractmethod
-from argparse import ArgumentTypeError
+from pathlib import Path
 import numpy as np
 from scipy.integrate import nquad
-
-
-def valid_target(val_raw):
-    """Ensures that the selected function exists"""
-    available_targets = {
-        "sin1d": Sin1d,
-        "cosnd": Cosnd,
-        "sind": Sind,
-        "lepage": LepageTest,
-    }
-    val = val_raw.lower()
-    if val not in available_targets:
-        ava = list(available_targets.keys())
-        raise ArgumentTypeError(f"Target {val_raw} not allowed, allowed targets are {ava}")
-
-    return available_targets[val]
+from scipy.interpolate import interp1d
 
 
 class TargetFunction:
@@ -39,9 +24,9 @@ class TargetFunction:
         self.ndim = ndim
         if len(parameters) > self.max_par:
             raise ValueError(f"This target function accepts a maximum of {self.max_par} parameters")
-        if ndim > self.ndim:
+        if ndim > self.max_ndim:
             raise ValueError(
-                f"This target function accepts a maximum of {self.max_ndim} to inetegate"
+                f"This target function accepts a maximum of {self.max_ndim} to integrate"
             )
         print(f"Preparing {self} with d={self.ndim}")
 
@@ -133,3 +118,36 @@ class LepageTest(TargetFunction):
         for x in xarr:
             res += np.power(x - 0.5, 2) / self._a2
         return self._pref * np.exp(-res)
+
+    def __repr__(self):
+        return f"LepageTest {self.ndim}D"
+
+
+class UquarkPDF(TargetFunction):
+    """In order to avoid having to install lhapdf,
+    the data for the gluon for NNPDF4.0 is saved as a npz file"""
+
+    _eps = 1e-6
+    max_par = 0
+    max_ndim = 1
+
+    def build(self):
+        xgrid = np.linspace(self._eps, 1, int(1 / self._eps))
+        gluon_raw = np.load(Path(__file__) / "uquark.npz").get("arr_0")
+        self._gluon = interp1d(xgrid, gluon_raw)
+
+    def __call__(self, xarr):
+        xarr = np.maximum(xarr, self._eps)
+        return self._gluon(xarr)
+
+    def __repr__(self):
+        return f"xgluon(x)"
+
+
+available_targets = {
+    "sin1d": Sin1d,
+    "cosnd": Cosnd,
+    "sind": Sind,
+    "lepage": LepageTest,
+    "uquark": UquarkPDF,
+}

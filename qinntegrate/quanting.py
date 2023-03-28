@@ -97,6 +97,9 @@ class BaseVariationalObservable:
         # Visualizing the model
         self.print_model()
 
+    def __repr__(self):
+        return self.__class__.__name__
+
     def build_circuit(self):
         """Build step of the circuit"""
         # In this basic variational observable each x will be updated at a different layers
@@ -244,3 +247,6 @@ class ReuploadingAnsatz(BaseVariationalObservable):
 
         # Get the initial parameters
         self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+
+available_ansatz = {"base": BaseVariationalObservable, "reuploading": ReuploadingAnsatz}
