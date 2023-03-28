@@ -165,7 +165,11 @@ if __name__ == "__main__":
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
 
-    # Construct the observable to be trained using the given ansatz
+    # Setting tensorflow backend if opt is sgd
+    if args.optimizer == 'sgd':
+        from qibo import set_backend
+        set_backend('tensorflow')
+
     observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim)
 
     # Prepare the integration limits
