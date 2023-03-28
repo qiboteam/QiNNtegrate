@@ -20,10 +20,8 @@ ANSATZS = list(available_ansatz.keys())
 
 def check_qbits(var):
     nqbit = int(var)
-    if nqbit < 2:
-        raise ArgumentTypeError(
-            "At least 2 qbits are needed in order for entanglement to be active"
-        )
+    if nqbit < 1:
+        raise ArgumentTypeError("Number of qubits must be positive")
     return nqbit
 
 

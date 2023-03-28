@@ -133,7 +133,7 @@ class UquarkPDF(TargetFunction):
 
     def build(self):
         xgrid = np.linspace(self._eps, 1, int(1 / self._eps))
-        gluon_raw = np.load(Path(__file__) / "uquark.npz").get("arr_0")
+        gluon_raw = np.load(Path(__file__).parent / "uquark.npz").get("arr_0")
         self._gluon = interp1d(xgrid, gluon_raw)
 
     def __call__(self, xarr):
