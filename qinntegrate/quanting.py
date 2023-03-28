@@ -168,7 +168,10 @@ class BaseVariationalObservable:
         # Update the parameters for this run
         circ_parameters = deepcopy(self.parameters)
         for i, parameter in enumerate(uploaded_paramaters):
-            circ_parameters[i] = parameter.y
+            if str(self._observable.backend) == 'tensorflow':
+                circ_parameters[i].assign(parameter.y)
+            else:
+                circ_parameters[i] = parameter.y
         self._circuit.set_parameters(circ_parameters)
         state = bexec(circuit=self._circuit, initial_state=self._initial_state).state()
         return self._observable.expectation(state)
@@ -185,7 +188,8 @@ class BaseVariationalObservable:
         """Save the new set of parameters for the circuit
         They only get burned into the circuit when the forward pass is called
         """
-        if len(new_parameters) != self.nparams:
+        
+        if new_parameters.shape[0] != self.nparams:
             raise ValueError("Trying to set more parameters than those allowed by the circuit")
         self._variational_params = new_parameters
 
