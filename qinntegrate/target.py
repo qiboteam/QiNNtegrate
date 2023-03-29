@@ -141,7 +141,7 @@ class UquarkPDF(TargetFunction):
         return self._gluon(xarr)
 
     def __repr__(self):
-        return f"xgluon(x)"
+        return f"xu(x)"
 
 
 available_targets = {
