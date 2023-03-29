@@ -151,7 +151,7 @@ if __name__ == "__main__":
         action="store_true",
     )
     opt_parser.add_argument(
-        "--optimizer", help="Chosen optimizer; available 'cma' and 'BFGS'.", default='cma', type=str
+        "--optimizer", help="Chosen optimizer; available 'cma' and 'BFGS'.", default="cma", type=str
     )
 
     args = parser.parse_args()
@@ -166,9 +166,10 @@ if __name__ == "__main__":
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
 
     # Setting tensorflow backend if opt is sgd
-    if args.optimizer == 'sgd':
+    if args.optimizer == "sgd":
         from qibo import set_backend
-        set_backend('tensorflow')
+
+        set_backend("tensorflow")
 
     observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim)
 

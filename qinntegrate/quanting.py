@@ -94,15 +94,18 @@ class BaseVariationalObservable:
 
         self.build_circuit()
         self.build_observable()
+
+        # setting initial random parameters
+        if self._circuit is None:
+            raise ValueError("Circuit has not being built")
+        self._nparams = len(self._circuit.get_parameters())
+        self._variational_params = np.random.randn(self._nparams)
+
         # Visualizing the model
         self.print_model()
 
     def __repr__(self):
         return self.__class__.__name__
-
-        # setting initial random parameters
-        self._nparams = len(self._variational_params)
-        self.set_parameters(np.random.randn(self._nparams))
 
     def build_circuit(self):
         """Build step of the circuit"""
@@ -128,9 +131,6 @@ class BaseVariationalObservable:
 
         circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
         self._circuit = circuit
-
-        # Get the initial parameters
-        self._variational_params = np.array(circuit.get_parameters()).flatten()
 
     def print_model(self):
         """Print a model of the circuit"""
@@ -168,7 +168,7 @@ class BaseVariationalObservable:
         # Update the parameters for this run
         circ_parameters = deepcopy(self.parameters)
         for i, parameter in enumerate(uploaded_paramaters):
-            if str(self._observable.backend) == 'tensorflow':
+            if str(self._observable.backend) == "tensorflow":
                 circ_parameters[i].assign(parameter.y)
             else:
                 circ_parameters[i] = parameter.y
@@ -188,7 +188,7 @@ class BaseVariationalObservable:
         """Save the new set of parameters for the circuit
         They only get burned into the circuit when the forward pass is called
         """
-        
+
         if new_parameters.shape[0] != self.nparams:
             raise ValueError("Trying to set more parameters than those allowed by the circuit")
         self._variational_params = new_parameters

@@ -10,6 +10,7 @@ from qibo.optimizers import optimize
 def mse(y, p, norm=1.0):
     return np.mean((y - p) ** 2 / norm)
 
+
 class Loss:
     def __init__(self, xarr, target, predictor, normalize=True):
         self._target = target
@@ -33,10 +34,9 @@ class Loss:
         pred_y = np.array(pred_y)
 
         return mse(pred_y, self._ytrue, norm=self._ynorm)
-    
 
-class SimAnnealer():
 
+class SimAnnealer:
     def __init__(self, predictor, betai=1, betaf=500, nsteps=500, delta=0.5):
         """Simulated annealing implementation for VQCs model optimization"""
 
@@ -45,14 +45,16 @@ class SimAnnealer():
         self._nsteps = nsteps
         self._predictor = predictor
         self._params = predictor.parameters
-        self._nparams = len(self._params) 
+        self._nparams = len(self._params)
         self._delta = delta
 
-        print(f'Simulated annealing settings: beta_i={betai}, beta_f={betaf}, nsteps={nsteps}, delta={delta}.')
+        print(
+            f"Simulated annealing settings: beta_i={betai}, beta_f={betaf}, nsteps={nsteps}, delta={delta}."
+        )
 
     def cooling(self, xrand, target, normalize, nprint=5):
         """Performs the cooling of the system searching for minimum of the energy"""
-        
+
         energy = Loss(xrand, target, self._predictor, normalize=normalize)
         energies = []
 
@@ -67,18 +69,20 @@ class SimAnnealer():
             ene2 = energy(self._params)
             energies.append(ene2)
             # evaluating Boltzmann energies
-            p = min(1., np.exp(-beta*(ene2-ene1)))
+            p = min(1.0, np.exp(-beta * (ene2 - ene1)))
 
-            r = random.uniform(0,1)
+            r = random.uniform(0, 1)
 
-            if(r >= p):
+            if r >= p:
                 self._params -= deltas
                 self._predictor.set_parameters(self._params)
                 energies[-1] = ene1
 
-            if(_ % nprint == 0):
-                print(f"Obtained E at step {_+1} with T={round(1/beta, 5)} is {round(energies[-1], 5)}")
-            
+            if _ % nprint == 0:
+                print(
+                    f"Obtained E at step {_+1} with T={round(1/beta, 5)} is {round(energies[-1], 5)}"
+                )
+
         return self._predictor.parameters
 
 
@@ -121,8 +125,7 @@ def launch_optimization(
         # tracking required time
         start = time.time()
 
-        if method == 'cma':
-
+        if method == "cma":
             options = {
                 "verbose": -1,
                 "tolfun": 1e-12,
@@ -133,45 +136,40 @@ def launch_optimization(
 
             result = optimize(loss, initial_p, method="cma", options=options)
 
-        elif method == 'BFGS':
-
-            print('initial parameters: ', initial_p)
+        elif method == "BFGS":
+            print("initial parameters: ", initial_p)
 
             options = {
-                "disp" : True,
-                "return_all" : True,
+                "disp": True,
+                "return_all": True,
             }
 
             result = optimize(loss, initial_p, method=method, options=options)
 
         # this one is not working right now
-        elif method == 'sgd':
-
+        elif method == "sgd":
             options = {
-                "optimizer" : "Adam",
-                "nepochs" : 500,
-                "nmessage" : 1,
-                "learning_rate" : 0.025,
+                "optimizer": "Adam",
+                "nepochs": 500,
+                "nmessage": 1,
+                "learning_rate": 0.025,
             }
 
             result = optimize(loss, initial_p, method="sgd", options=options)
 
-        
-        elif method == 'annealing':
-            
+        elif method == "annealing":
             simann = SimAnnealer(predictor)
             params = simann.cooling(xrand, target, normalize, nprint=1)
 
         # end of the time tracking
         end = time.time()
 
-
     # Set the final set of parameters
-    if method == 'annealing':
+    if method == "annealing":
         best_p = params
     else:
         best_p = result[1]
-    
+
     predictor.set_parameters(best_p)
     print(f"Best set of parameters: {best_p=}")
     print(f"Total time required for the optimization: {round(end-start, 5)} sec.")
