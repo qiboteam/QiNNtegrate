@@ -212,6 +212,7 @@ class BaseVariationalObservable:
         return self._eigenfactor * res
 
 
+
 class ReuploadingAnsatz(BaseVariationalObservable):
     """Generates a variational quantum circuit in which we upload all the variables
     in each layer."""
@@ -237,10 +238,8 @@ class ReuploadingAnsatz(BaseVariationalObservable):
         for _ in range(self._nlayers):
             for q in range(self._nqubits):
                 circuit.add(gates.RY(q, theta=0))
+                self._reuploading_indexes[q].append(len(circuit.get_parameters()) - 1)
                 circuit.add(gates.RY(q, theta=0))
-                circuit.add(gates.RZ(q, theta=0))
-                curr_idx = len(circuit.get_parameters()) - 1
-                self._reuploading_indexes[q].append(curr_idx)
             # if nqubits > 1 we build entanglement
             if self._nqubits > 1:
                 circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1)))
