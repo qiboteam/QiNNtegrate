@@ -95,10 +95,10 @@ class SimAnnealer(Optimizer):
 
     def set_options(self, **kwargs):
         self._betai = kwargs.get("betai", 1)
-        self._betaf = kwargs.get("betaf", 500)
+        self._betaf = kwargs.get("betaf", 1000)
         self._maxiter = kwargs.get("max_iterations", 500)
         self._dbeta = (self._betaf - self._betai)/self._maxiter
-        self._delta = kwargs.get("delta", 0.05)
+        self._delta = kwargs.get("delta", 0.5)
 
         self._nprint = 1
         print(
@@ -108,6 +108,7 @@ class SimAnnealer(Optimizer):
     def optimize(self, initial_p):
         """Performs the cooling of the system searching for minimum of the energy, where the energy is the loss function"""
         energies = []
+        acc_rate = self._maxiter
 
         parameters = initial_p
         nparams = len(parameters)
@@ -128,6 +129,7 @@ class SimAnnealer(Optimizer):
             if r >= p:
                 parameters -= deltas
                 energies[-1] = ene1
+                acc_rate -= 1
 
             if (nstep := step + 1) % self._nprint == 0:
                 print(
@@ -136,6 +138,7 @@ class SimAnnealer(Optimizer):
             
             beta += self._dbeta
 
+        print(f'\nAnnealing finishes here with acceptance rate AR={acc_rate/self._maxiter}')
         best_p = parameters
         return None, best_p
 
