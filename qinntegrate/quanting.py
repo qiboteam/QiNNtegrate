@@ -212,6 +212,7 @@ class BaseVariationalObservable:
         return self._eigenfactor * res
 
 
+
 class ReuploadingAnsatz(BaseVariationalObservable):
     """Generates a variational quantum circuit in which we upload all the variables
     in each layer."""
@@ -237,10 +238,8 @@ class ReuploadingAnsatz(BaseVariationalObservable):
         for _ in range(self._nlayers):
             for q in range(self._nqubits):
                 circuit.add(gates.RY(q, theta=0))
+                self._reuploading_indexes[q].append(len(circuit.get_parameters()) - 1)
                 circuit.add(gates.RY(q, theta=0))
-                circuit.add(gates.RZ(q, theta=0))
-                curr_idx = len(circuit.get_parameters()) - 1
-                self._reuploading_indexes[q].append(curr_idx)
             # if nqubits > 1 we build entanglement
             if self._nqubits > 1:
                 circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1)))
@@ -258,4 +257,47 @@ class ReuploadingAnsatz(BaseVariationalObservable):
         self._variational_params = np.array(circuit.get_parameters()).flatten()
 
 
-available_ansatz = {"base": BaseVariationalObservable, "reuploading": ReuploadingAnsatz}
+class qPDFAnsatz(BaseVariationalObservable):
+    """
+    Generates a circuit which follows the qPDF ansatz.
+    The following implementation works only for 1 flavour; uquark in this case.
+    Ref: https://arxiv.org/abs/2011.13934.
+    """
+
+    def __init__(self, nqubits, nlayers, ndim=1, initial_state=None):
+        """In this specific model we are going to use a 1 qubit circuit."""
+        if nqubits != 1 or ndim != 1:
+            raise ValueError(
+                "With this ansatz we tackle the 1d uquark qPDF and only 1 qubit is allowed."
+            )
+        # inheriting the BaseModel features
+        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+
+    def build_circuit(self):
+        """Builds the reuploading ansatz for the circuit"""
+
+        circuit = models.Circuit(self._nqubits)
+
+        # then we add parametric gates
+        for _ in range(self._nlayers):
+            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            # THIS ROTATION MUST BE FILLED WITH: log(x)
+            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            circuit.add(gates.RZ(q=0, theta=0))
+            self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
+            circuit.add(gates.RZ(q=0, theta=0))
+            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            # THIS ROTATION MUST BE FILLED WITH: x
+            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            circuit.add(gates.RY(q=0, theta=0))
+            self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
+            circuit.add(gates.RY(q=0, theta=0))
+        # measurement gates
+        circuit.add((gates.M(0)))
+
+        self._circuit = circuit
+        # Get the initial parameters
+        self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+
+available_ansatz = {"base": BaseVariationalObservable, "reuploading": ReuploadingAnsatz, "qpdf" : qPDFAnsatz}
