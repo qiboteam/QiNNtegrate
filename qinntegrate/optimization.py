@@ -1,6 +1,7 @@
 """
     Optimization routines
 """
+from abc import abstractmethod
 import random
 import time
 import numpy as np
@@ -11,20 +12,28 @@ def mse(y, p, norm=1.0):
     return np.mean((y - p) ** 2 / norm)
 
 
-class Loss:
+class Optimizer:
+    """
+    The optimizer.optimize method uses the same convention as qibo, and it returns
+    an object for which element 1 is the best set of parameters
+    """
+
+    _method = None
+
     def __init__(self, xarr, target, predictor, normalize=True):
         self._target = target
         self._predictor = predictor
         self._xarr = xarr
+        self._options = {}
 
         self._ytrue = np.array([target(i) for i in xarr])
         self._ynorm = 1.0
         if normalize:
             self._ynorm = np.abs(self._ytrue) + 1e-7
 
-    def __call__(self, parameters):
+    def loss(self, parameters):
         """Set the parameters in the predictor
-        and compare the results with ytrue"""
+        and compare the results with ytrue in a MSE way"""
         self._predictor.set_parameters(parameters)
 
         # Compute the prediction for the points in x
@@ -35,38 +44,81 @@ class Loss:
 
         return mse(pred_y, self._ytrue, norm=self._ynorm)
 
+    @abstractmethod
+    def set_options(self, **kwargs):
+        """Cast the options passed into the format expected by the optimizer"""
+        pass
 
-class SimAnnealer:
-    def __init__(self, predictor, betai=1, betaf=500, nsteps=500, delta=0.5):
-        """Simulated annealing implementation for VQCs model optimization"""
+    def optimize(self, initial_p):
+        if self._method is None:
+            raise ValueError(
+                f"The optimizer {self.__class__.__name__} does not implement any methods"
+            )
+        return optimize(self.loss, initial_p, method=self._method, options=self._options)
 
-        self._betai = betai
-        self._betaf = betaf
-        self._nsteps = nsteps
-        self._predictor = predictor
-        self._params = predictor.parameters
-        self._nparams = len(self._params)
-        self._delta = delta
 
+class CMA(Optimizer):
+    _method = "cma"
+
+    def set_options(self, **kwargs):
+        self._options = {
+            "verbose": -1,
+            "tolfun": 1e-12,
+            "ftarget": kwargs["tol_error"],  # target error
+            "maxiter": kwargs["max_iterations"],  # maximum number of iterations
+            "maxfeval": kwargs["max_evals"],  # maximum number of function evaluations
+        }
+
+
+class BFGS(Optimizer):
+    _method = "BFGS"
+
+    def set_options(self, **kwargs):
+        self._options = {"disp": True, "return_all": True}
+        print(f"Initial parameters: {self._predictor.parameters}")
+
+
+class SGD(Optimizer):
+    _method = "sgd"
+
+    def set_options(self, **kwargs):
+        self._options = {
+            "optimizer": "Adam",
+            "nmessage": 1,
+            "learning_rate": 0.025,
+            "nepochs": kwargs["max_iterations"],  # maximum number of iterations
+        }
+
+
+class SimAnnealer(Optimizer):
+    """Simulated annealing implementation for VQCs model optimization"""
+
+    def set_options(self, **kwargs):
+        self._betai = kwargs.get("betai", 1)
+        self._betaf = kwargs.get("betaf", 500)
+        self._maxiter = kwargs.get("max_iterations", 500)
+        self._delta = kwargs.get("delta", 0.5)
+
+        self._nprint = 1
         print(
-            f"Simulated annealing settings: beta_i={betai}, beta_f={betaf}, nsteps={nsteps}, delta={delta}."
+            f"Simulated annealing settings: beta_i={self._betai}, beta_f={self._betaf}, maxiter={self._maxiter}, delta={self._delta}."
         )
 
-    def cooling(self, xrand, target, normalize, nprint=5):
-        """Performs the cooling of the system searching for minimum of the energy"""
-
-        energy = Loss(xrand, target, self._predictor, normalize=normalize)
+    def optimize(self, initial_p):
+        """Performs the cooling of the system searching for minimum of the energy, where the energy is the loss function"""
         energies = []
 
+        parameters = initial_p
+        nparams = len(parameters)
+
         beta = self._betai
-        for _ in range(self._nsteps):
-            beta += _
-            # energy before
-            ene1 = energy(self._params)
-            deltas = np.random.uniform(-self._delta, self._delta, self._nparams)
-            self._params += deltas
-            self._predictor.set_parameters(self._params)
-            ene2 = energy(self._params)
+        for step in range(self._maxiter):
+            beta += step
+            # Energy before
+            ene1 = self.loss(parameters)
+            deltas = np.random.uniform(-self._delta, self._delta, nparams)
+            parameters += deltas
+            ene2 = self.loss(parameters)
             energies.append(ene2)
             # evaluating Boltzmann energies
             p = min(1.0, np.exp(-beta * (ene2 - ene1)))
@@ -74,21 +126,22 @@ class SimAnnealer:
             r = random.uniform(0, 1)
 
             if r >= p:
-                self._params -= deltas
-                self._predictor.set_parameters(self._params)
+                parameters -= deltas
                 energies[-1] = ene1
 
-            if _ % nprint == 0:
+            if (nstep := step + 1) % self._nprint == 0:
                 print(
-                    f"Obtained E at step {_+1} with T={round(1/beta, 5)} is {round(energies[-1], 5)}"
+                    f"Obtained E at step {nstep} with T={round(1/beta, 5)} is {round(energies[-1], 5)}"
                 )
 
-        return self._predictor.parameters
+        best_p = parameters
+        return None, best_p
 
 
 def launch_optimization(
     predictor,
     target,
+    optimizer_class,
     xmin=(0.0,),
     xmax=(1.0,),
     npoints=int(5e2),
@@ -97,7 +150,6 @@ def launch_optimization(
     tol_error=1e-5,
     padding=False,
     normalize=True,
-    method="cma",
 ):
     """Receives a predictor (can be a circuit, NN, etc... which inherits from quanting.BaseVariationalObservable)
     and a target function (which inherits from target.TargetFunction) and performs the training
@@ -111,7 +163,7 @@ def launch_optimization(
         xmax += 0.1 * xdelta
     xrand = np.random.rand(npoints, target.ndim) * (xmax - xmin) + xmin
 
-    loss = Loss(xrand, target, predictor, normalize=normalize)
+    optimizer = optimizer_class(xrand, target, predictor, normalize=normalize)
 
     # And... optimize!
     # Use whatever is the current value of the parameters as the initial point
@@ -119,58 +171,25 @@ def launch_optimization(
 
     if max_iterations == 0:
         print("Skipping the optimization phase since max_iterations=0")
-        result = (None, initial_p)
+        best_p = initial_p
 
     else:
         # tracking required time
         start = time.time()
 
-        if method == "cma":
-            options = {
-                "verbose": -1,
-                "tolfun": 1e-12,
-                "ftarget": tol_error,  # Target error
-                "maxiter": max_iterations,  # Maximum number of iterations
-                "maxfeval": max_evals,  # Maximum number of function evaluations
-            }
-
-            result = optimize(loss, initial_p, method="cma", options=options)
-
-        elif method == "BFGS":
-            print("initial parameters: ", initial_p)
-
-            options = {
-                "disp": True,
-                "return_all": True,
-            }
-
-            result = optimize(loss, initial_p, method=method, options=options)
-
-        # this one is not working right now
-        elif method == "sgd":
-            options = {
-                "optimizer": "Adam",
-                "nepochs": 500,
-                "nmessage": 1,
-                "learning_rate": 0.025,
-            }
-
-            result = optimize(loss, initial_p, method="sgd", options=options)
-
-        elif method == "annealing":
-            simann = SimAnnealer(predictor)
-            params = simann.cooling(xrand, target, normalize, nprint=1)
+        optimizer.set_options(
+            max_iterations=max_iterations, max_evals=max_evals, tol_error=tol_error
+        )
+        results = optimizer.optimize(initial_p)
+        best_p = results[1]
 
         # end of the time tracking
         end = time.time()
-
-    # Set the final set of parameters
-    if method == "annealing":
-        best_p = params
-    else:
-        best_p = result[1]
 
     predictor.set_parameters(best_p)
     print(f"Best set of parameters: {best_p=}")
     print(f"Total time required for the optimization: {round(end-start, 5)} sec.")
     return best_p
+
+
+available_optimizers = {"cma": CMA, "bfgs": BFGS, "sgd": SGD, "annealing": SimAnnealer}
