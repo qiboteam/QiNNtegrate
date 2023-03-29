@@ -268,7 +268,7 @@ class qPDFAnsatz(BaseVariationalObservable):
         """In this specific model we are going to use a 1 qubit circuit."""
         if nqubits != 1 or ndim != 1:
             raise ValueError(
-                "With this ansatz we tackle the 1d uquark qPDF and only 1 qubit is required."
+                "With this ansatz we tackle the 1d uquark qPDF and only 1 qubit is allowed."
             )
         # inheriting the BaseModel features
         super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
