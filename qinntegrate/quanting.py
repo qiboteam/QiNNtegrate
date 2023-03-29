@@ -97,6 +97,9 @@ class BaseVariationalObservable:
         # Visualizing the model
         self.print_model()
 
+    def __repr__(self):
+        return self.__class__.__name__
+
     def build_circuit(self):
         """Build step of the circuit"""
         # In this basic variational observable each x will be updated at a different layers
@@ -228,7 +231,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
                 circuit.add(gates.RY(q, theta=0))
                 circuit.add(gates.RY(q, theta=0))
                 circuit.add(gates.RZ(q, theta=0))
-                curr_idx = len(circuit.get_parameters())
+                curr_idx = len(circuit.get_parameters()) - 1
                 self._reuploading_indexes[q].append(curr_idx)
             # if nqubits > 1 we build entanglement
             if self._nqubits > 1:
@@ -244,3 +247,6 @@ class ReuploadingAnsatz(BaseVariationalObservable):
 
         # Get the initial parameters
         self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+
+available_ansatz = {"base": BaseVariationalObservable, "reuploading": ReuploadingAnsatz}
