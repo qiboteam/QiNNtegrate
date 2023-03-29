@@ -1,9 +1,10 @@
 """
     Optimization routines
 """
+import random
+import time
 import numpy as np
 from qibo.optimizers import optimize
-import time
 
 
 def mse(y, p, norm=1.0):
@@ -39,8 +40,6 @@ class SimAnnealer():
     def __init__(self, predictor, betai=1, betaf=500, nsteps=500, delta=0.5):
         """Simulated annealing implementation for VQCs model optimization"""
 
-        from copy import deepcopy
-
         self._betai = betai
         self._betaf = betaf
         self._nsteps = nsteps
@@ -52,9 +51,7 @@ class SimAnnealer():
         print(f'Simulated annealing settings: beta_i={betai}, beta_f={betaf}, nsteps={nsteps}, delta={delta}.')
 
     def cooling(self, xrand, target, normalize, nprint=5):
-
-        import random
-        import matplotlib.pyplot as plt
+        """Performs the cooling of the system searching for minimum of the energy"""
         
         energy = Loss(xrand, target, self._predictor, normalize=normalize)
         energies = []
@@ -81,12 +78,6 @@ class SimAnnealer():
 
             if(_ % nprint == 0):
                 print(f"Obtained E at step {_+1} with T={round(1/beta, 5)} is {round(energies[-1], 5)}")
-
-        plt.title('Energy evolution during the annealing')
-        plt.plot(energies, c='purple', lw=2, alpha=0.6)
-        plt.xlabel('Step')
-        plt.ylabel('E')
-        plt.show()
             
         return self._predictor.parameters
 
