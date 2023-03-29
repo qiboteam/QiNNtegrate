@@ -97,7 +97,8 @@ class SimAnnealer(Optimizer):
         self._betai = kwargs.get("betai", 1)
         self._betaf = kwargs.get("betaf", 500)
         self._maxiter = kwargs.get("max_iterations", 500)
-        self._delta = kwargs.get("delta", 0.5)
+        self._dbeta = (self._betaf - self._betai)/self._maxiter
+        self._delta = kwargs.get("delta", 0.05)
 
         self._nprint = 1
         print(
@@ -113,7 +114,6 @@ class SimAnnealer(Optimizer):
 
         beta = self._betai
         for step in range(self._maxiter):
-            beta += step
             # Energy before
             ene1 = self.loss(parameters)
             deltas = np.random.uniform(-self._delta, self._delta, nparams)
@@ -133,6 +133,8 @@ class SimAnnealer(Optimizer):
                 print(
                     f"Obtained E at step {nstep} with T={round(1/beta, 5)} is {round(energies[-1], 5)}"
                 )
+            
+            beta += self._dbeta
 
         best_p = parameters
         return None, best_p
