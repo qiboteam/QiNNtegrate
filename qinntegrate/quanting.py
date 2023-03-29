@@ -94,6 +94,13 @@ class BaseVariationalObservable:
 
         self.build_circuit()
         self.build_observable()
+
+        # setting initial random parameters
+        if self._circuit is None:
+            raise ValueError("Circuit has not being built")
+        self._nparams = len(self._circuit.get_parameters())
+        self._variational_params = np.random.randn(self._nparams)
+
         # Visualizing the model
         self.print_model()
 
@@ -124,9 +131,6 @@ class BaseVariationalObservable:
 
         circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
         self._circuit = circuit
-
-        # Get the initial parameters
-        self._variational_params = np.array(circuit.get_parameters()).flatten()
 
     def print_model(self):
         """Print a model of the circuit"""
@@ -164,7 +168,10 @@ class BaseVariationalObservable:
         # Update the parameters for this run
         circ_parameters = deepcopy(self.parameters)
         for i, parameter in enumerate(uploaded_paramaters):
-            circ_parameters[i] = parameter.y
+            if str(self._observable.backend) == "tensorflow":
+                circ_parameters[i].assign(parameter.y)
+            else:
+                circ_parameters[i] = parameter.y
         self._circuit.set_parameters(circ_parameters)
         state = bexec(circuit=self._circuit, initial_state=self._initial_state).state()
         return self._observable.expectation(state)
@@ -181,7 +188,8 @@ class BaseVariationalObservable:
         """Save the new set of parameters for the circuit
         They only get burned into the circuit when the forward pass is called
         """
-        if len(new_parameters) != self.nparams:
+
+        if new_parameters.shape[0] != self.nparams:
             raise ValueError("Trying to set more parameters than those allowed by the circuit")
         self._variational_params = new_parameters
 
@@ -236,7 +244,8 @@ class ReuploadingAnsatz(BaseVariationalObservable):
             # if nqubits > 1 we build entanglement
             if self._nqubits > 1:
                 circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1)))
-                circuit.add((gates.CZ(self._nqubits - 1, 0)))
+                if self._nqubits > 2:
+                    circuit.add((gates.CZ(self._nqubits - 1, 0)))
         # final rotation only with more than 1 qubit
         if self._nqubits > 1:
             circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))

@@ -11,11 +11,12 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from qinntegrate.target import available_targets
-from qinntegrate.optimization import launch_optimization
+from qinntegrate.optimization import launch_optimization, available_optimizers
 from qinntegrate.quanting import available_ansatz
 
 TARGETS = list(available_targets.keys())
 ANSATZS = list(available_ansatz.keys())
+OPTIMIZ = list(available_optimizers.keys())
 
 
 def check_qbits(var):
@@ -25,14 +26,19 @@ def check_qbits(var):
     return nqbit
 
 
-def valid_target(val_raw):
-    """Ensures that the selected function exists"""
+def valid_this(val_raw, options, name=""):
+    """Ensures that the option val_raw is included in the available options"""
+    # Make sure that everything is lowercase
     val = val_raw.lower()
-    if val not in available_targets:
-        ava = list(available_targets.keys())
-        raise ArgumentTypeError(f"Target {val_raw} not allowed, allowed targets are {ava}")
+    options = {i.lower(): k for i, k in options.items()}
+    if val not in options:
+        ava = list(options.keys())
+        raise ArgumentTypeError(f"{name} {val_raw} not allowed, allowed options are {ava}")
+    return options[val]
 
-    return available_targets[val]
+
+def valid_target(val_raw):
+    return valid_this(val_raw, available_targets, "Target")
 
 
 def valid_ansatz(val_raw):
@@ -40,10 +46,11 @@ def valid_ansatz(val_raw):
     Note that this does not check whether the number of dimensions/qbits/etc is acceptable
     acyclic graphs are beyond of the scope of this project...
     """
-    val = val_raw.lower()
-    if val not in ANSATZS:
-        raise ArgumentTypeError(f"Ansatz {val} not allowed, allowed ansatz are: {ANSATZ}")
-    return available_ansatz[val]
+    return valid_this(val_raw, available_ansatz, "Ansatz")
+
+
+def valid_optimizer(val_raw):
+    return valid_this(val_raw, available_optimizers, "Optimizer")
 
 
 def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e3)):
@@ -150,6 +157,12 @@ if __name__ == "__main__":
         help="Don't normalize MSE by the size of the integrand",
         action="store_true",
     )
+    opt_parser.add_argument(
+        "--optimizer",
+        help=f"Optimizers, available options: {OPTIMIZ}",
+        type=valid_optimizer,
+        default=valid_optimizer("CMA"),
+    )
 
     args = parser.parse_args()
 
@@ -162,7 +175,6 @@ if __name__ == "__main__":
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
 
-    # Construct the observable to be trained using the given ansatz
     observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim)
 
     # Prepare the integration limits
@@ -181,6 +193,7 @@ if __name__ == "__main__":
     best_p = launch_optimization(
         observable,
         target_fun,
+        args.optimizer,
         max_iterations=args.maxiter,
         padding=args.padding,
         normalize=not args.absolute,
@@ -222,4 +235,5 @@ if __name__ == "__main__":
     opts["FinalResult"] = res
     opts["TargetResult"] = target_result
     opts["ansatz"] = str(observable)
+    opts["optimizer"] = str(args.optimizer)
     json.dump(opts, arg_path.open("w", encoding="utf-8"), indent=True)
