@@ -49,6 +49,7 @@ class _UploadedParameter:
     theta: float
     index: int  # The parameter index in the circuit
     dimension: int  # The dimension this parameter corresponds to
+    is_log: bool = False
     s: float = 0.0
 
     def shift(self, s):
@@ -59,14 +60,21 @@ class _UploadedParameter:
 
     @property
     def y(self):
-        return self.x * self.theta + self.s
+        if self.is_log:
+            x = np.log(self.x)
+        else:
+            x = self.x
+        return  x * self.theta + self.s
 
     @property
     def factor(self):
         # The shift-factor is only active once per dimension
         if self.s == 0.0:
             return 1.0
-        return np.sign(self.s) * self.theta
+        derivative = 1.0
+        if self.is_log:
+            derivative = 1.0/self.x
+        return np.sign(self.s) * self.theta * derivative
 
     def __repr__(self):
         return f"{self.y} ({self.factor}, idx: {self.index})"
@@ -166,7 +174,7 @@ class BaseVariationalObservable:
         """
         bexec = self._observable.backend.execute_circuit  # is this needed?
         # Update the parameters for this run
-        circ_parameters = deepcopy(self.parameters)
+        circ_parameters = self.parameters
         for i, parameter in enumerate(uploaded_paramaters):
             if str(self._observable.backend) == "tensorflow":
                 circ_parameters[i].assign(parameter.y)
@@ -264,6 +272,8 @@ class qPDFAnsatz(BaseVariationalObservable):
     Ref: https://arxiv.org/abs/2011.13934.
     """
 
+    _eps = 1e-7
+
     def __init__(self, nqubits, nlayers, ndim=1, initial_state=None):
         """In this specific model we are going to use a 1 qubit circuit."""
         if nqubits != 1 or ndim != 1:
@@ -271,27 +281,46 @@ class qPDFAnsatz(BaseVariationalObservable):
                 "With this ansatz we tackle the 1d uquark qPDF and only 1 qubit is allowed."
             )
         # inheriting the BaseModel features
+        self._log_indexes = []
         super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
 
-    def build_circuit(self):
-        """Builds the reuploading ansatz for the circuit"""
+    def _upload_parameters(self, xarr):
+        """Inject the logarithm in some of the uploaded parameters for xarrr"""
+        # Make sure we are not asking for something too close to 0 or the logarithm will explode
+        xarr = np.maximum(self._eps, xarr)
+        y_raw = super()._upload_parameters(xarr)
+        y = []
+        for yval in y_raw:
+            if yval.index in self._log_indexes:
+                yval.is_log = True
+            y.append(yval)
+        return y
 
+    def build_circuit(self):
+        """Builds the reuploading ansatz for the circuit
+            The first parameter in every layer will be filled with logx
+            while the second will be filled with x
+        """
         circuit = models.Circuit(self._nqubits)
 
         # then we add parametric gates
         for _ in range(self._nlayers):
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # THIS ROTATION MUST BE FILLED WITH: log(x)
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            circuit.add(gates.RZ(q=0, theta=0))
-            self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
-            circuit.add(gates.RZ(q=0, theta=0))
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # THIS ROTATION MUST BE FILLED WITH: x
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            circuit.add(gates.RY(q=0, theta=0))
-            self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
-            circuit.add(gates.RY(q=0, theta=0))
+            for q in range(self._nqubits):
+                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # THIS ROTATION MUST BE FILLED WITH: log(x)
+                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                circuit.add(gates.RZ(q=q, theta=0))
+                idx = len(circuit.get_parameters()) - 1
+                self._reuploading_indexes[q].append(idx)
+                self._log_indexes.append(idx)
+                circuit.add(gates.RZ(q=q, theta=0))
+                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # THIS ROTATION MUST BE FILLED WITH: x
+                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                circuit.add(gates.RY(q=q, theta=0))
+                idx = len(circuit.get_parameters()) - 1
+                self._reuploading_indexes[q].append(idx)
+                circuit.add(gates.RY(q=q, theta=0))
         # measurement gates
         circuit.add((gates.M(0)))
 
