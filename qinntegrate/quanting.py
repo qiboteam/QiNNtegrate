@@ -103,6 +103,7 @@ class BaseVariationalObservable:
 
         # Visualizing the model
         self.print_model()
+        self.print_reuploading_schema()
 
     def __repr__(self):
         return self.__class__.__name__
@@ -136,6 +137,35 @@ class BaseVariationalObservable:
         """Print a model of the circuit"""
         print(f"\nCircuit drawing:\n{self._circuit.draw()}\n")
         print(f"Circuit summary:\n{self._circuit.summary()}\n")
+
+
+    def print_reuploading_schema(self):
+        """
+        Prints a schema representing how the variables are uploaded into the model.
+        Only rotation gates are represented (not controlled ones).
+        It prints 'NO' if the gate is not affected by any variable or 'xj' if 
+        the xj variable is uploaded there.
+        """
+        
+        print('Reuploading summary:')
+        nrot_per_qubit = int(len(self._variational_params) / self._nqubits)
+
+        counter = 0
+        # cycle on raws of the drawing
+        for q in range(self._nqubits):
+            output = f'q{q}: '
+            # building the raw string
+            for raw in range(nrot_per_qubit):
+                flag = 0
+                for i, indices in enumerate(self._reuploading_indexes):
+                    if counter in indices:           
+                        output += f'-x{i}'
+                        flag = 1
+                if flag == 0:    
+                    output += f'-NO'
+                counter += 1        
+            print(output)
+
 
 
     def build_observable(self):
