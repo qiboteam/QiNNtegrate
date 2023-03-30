@@ -137,6 +137,7 @@ class BaseVariationalObservable:
         print(f"\nCircuit drawing:\n{self._circuit.draw()}\n")
         print(f"Circuit summary:\n{self._circuit.summary()}\n")
 
+
     def build_observable(self):
         """Build step of the observable"""
         m0 = (1 / self._nqubits) * hamiltonians.Z(self._nqubits).matrix
@@ -257,6 +258,97 @@ class ReuploadingAnsatz(BaseVariationalObservable):
         self._variational_params = np.array(circuit.get_parameters()).flatten()
 
 
+class DeepReuploading(BaseVariationalObservable):
+
+    def __init__(self, nqubits, nlayers, ndim=1, initial_state=None): 
+        """
+        This ansatz is in principle equivalent to ReuploadingAnsatz, but in this case
+        we implement the full Fourier layer purposed in: https://arxiv.org/abs/1907.02085.
+        """
+        # inheriting the BaseModel features
+        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+
+    def build_circuit(self):
+        """Builds the reuploading ansatz for the circuit"""
+
+        circuit = models.Circuit(self._nqubits)
+
+        # At first we build up superposition for each qubit
+        circuit.add((gates.H(q) for q in range(self._nqubits)))
+        # then we add parametric gates
+        for _ in range(self._nlayers):
+            for q in range(self._nqubits):
+                circuit.add(gates.RY(q, theta=0))
+                circuit.add(gates.RZ(q, theta=0))
+                self._reuploading_indexes[q].append(len(circuit.get_parameters()) - 1)
+                circuit.add(gates.RZ(q, theta=0))
+                circuit.add(gates.RY(q, theta=0))
+                circuit.add(gates.RZ(q, theta=0))
+            # if nqubits > 1 we build entanglement
+            if self._nqubits > 1:
+                circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1)))
+                if self._nqubits > 2:
+                    circuit.add((gates.CZ(self._nqubits - 1, 0)))
+        # final rotation only with more than 1 qubit
+        if self._nqubits > 1:
+            circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
+        # measurement gates
+        circuit.add((gates.M(q) for q in range(self._nqubits)))
+
+        self._circuit = circuit
+
+        # Get the initial parameters
+        self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+
+class VerticalUploading(BaseVariationalObservable):
+
+    def __init__(self, nqubits, nlayers, ndim, initial_state=None):
+        """
+        Builds a vertical reuploading strategy.
+        With this ansatz each feature is uploaded in each qubit and each layer
+        following the Pérez-Salinas anzats: https://arxiv.org/abs/1907.02085. 
+        """
+        # inheriting the BaseModel features
+        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+
+    
+    def build_sheet(self, circuit, q, x_idx):
+        """
+        Uploading layer for one variable corresponding to index x_idx.
+        """
+        circuit.add(gates.RY(q, theta=0))
+        circuit.add(gates.RZ(q, theta=0))
+        self._reuploading_indexes[x_idx].append(len(circuit.get_parameters()) - 1)
+        circuit.add(gates.RZ(q, theta=0))
+        circuit.add(gates.RY(q, theta=0))
+        circuit.add(gates.RZ(q, theta=0))
+
+
+    def build_circuit(self):
+        """Builds the reuploading ansatz for the circuit"""
+
+        circuit = models.Circuit(self._nqubits)
+
+        for _ in range(self._nlayers):
+            for q in range(self._nqubits):
+                for dim in range(self._ndim):
+                    self.build_sheet(circuit, q, dim)
+            # if nqubits > 1 we build entanglement
+            if self._nqubits > 1:
+                circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1)))
+                if self._nqubits > 2:
+                    circuit.add((gates.CZ(self._nqubits - 1, 0)))
+        
+        # measurement gates
+        circuit.add((gates.M(q) for q in range(self._nqubits)))
+
+        self._circuit = circuit
+
+        # Get the initial parameters
+        self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+
 class qPDFAnsatz(BaseVariationalObservable):
     """
     Generates a circuit which follows the qPDF ansatz.
@@ -300,4 +392,10 @@ class qPDFAnsatz(BaseVariationalObservable):
         self._variational_params = np.array(circuit.get_parameters()).flatten()
 
 
-available_ansatz = {"base": BaseVariationalObservable, "reuploading": ReuploadingAnsatz, "qpdf" : qPDFAnsatz}
+available_ansatz = {
+    "base": BaseVariationalObservable, 
+    "reuploading": ReuploadingAnsatz,
+    "deepup": DeepReuploading,
+    "verticup": VerticalUploading, 
+    "qpdf" : qPDFAnsatz
+    }
