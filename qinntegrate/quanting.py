@@ -298,15 +298,11 @@ class DeepReuploading(BaseVariationalObservable):
 
 
 class VerticalUploading(BaseVariationalObservable):
-
-    def __init__(self, nqubits, nlayers, ndim, initial_state=None):
-        """
-        Builds a vertical reuploading strategy.
-        With this ansatz each feature is uploaded in each qubit and each layer
-        following the Pérez-Salinas anzats: https://arxiv.org/abs/1907.02085. 
-        """
-        # inheriting the BaseModel features
-        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+    """
+    Builds a vertical reuploading strategy.
+    With this ansatz each feature is uploaded in each qubit and each layer
+    following the Pérez-Salinas anzats: https://arxiv.org/abs/1907.02085. 
+    """
 
     
     def build_sheet(self, circuit, q, x_idx):
