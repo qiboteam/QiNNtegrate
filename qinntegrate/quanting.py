@@ -137,7 +137,6 @@ class BaseVariationalObservable:
         print(f"\nCircuit drawing:\n{self._circuit.draw()}\n")
         print(f"Circuit summary:\n{self._circuit.summary()}\n")
 
-
     def build_observable(self):
         """Build step of the observable"""
         m0 = (1 / self._nqubits) * hamiltonians.Z(self._nqubits).matrix
@@ -211,7 +210,6 @@ class BaseVariationalObservable:
             res += factor * self._execute(shift)
 
         return self._eigenfactor * res
-
 
 
 class ReuploadingAnsatz(BaseVariationalObservable):
@@ -301,10 +299,9 @@ class VerticalUploading(BaseVariationalObservable):
     """
     Builds a vertical reuploading strategy.
     With this ansatz each feature is uploaded in each qubit and each layer
-    following the Pérez-Salinas anzats: https://arxiv.org/abs/1907.02085. 
+    following the Pérez-Salinas anzats: https://arxiv.org/abs/1907.02085.
     """
 
-    
     def build_sheet(self, circuit, q, x_idx):
         """
         Uploading layer for one variable corresponding to index x_idx.
@@ -315,7 +312,6 @@ class VerticalUploading(BaseVariationalObservable):
         circuit.add(gates.RZ(q, theta=0))
         circuit.add(gates.RY(q, theta=0))
         circuit.add(gates.RZ(q, theta=0))
-
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
@@ -331,7 +327,7 @@ class VerticalUploading(BaseVariationalObservable):
                 circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1)))
                 if self._nqubits > 2:
                     circuit.add((gates.CZ(self._nqubits - 1, 0)))
-        
+
         # measurement gates
         circuit.add((gates.M(q) for q in range(self._nqubits)))
 
@@ -385,9 +381,9 @@ class qPDFAnsatz(BaseVariationalObservable):
 
 
 available_ansatz = {
-    "base": BaseVariationalObservable, 
+    "base": BaseVariationalObservable,
     "reuploading": ReuploadingAnsatz,
     "deepup": DeepReuploading,
-    "verticup": VerticalUploading, 
-    "qpdf" : qPDFAnsatz
-    }
+    "verticup": VerticalUploading,
+    "qpdf": qPDFAnsatz,
+}
