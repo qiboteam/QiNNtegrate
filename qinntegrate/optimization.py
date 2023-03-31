@@ -97,7 +97,7 @@ class SimAnnealer(Optimizer):
         self._betai = kwargs.get("betai", 1)
         self._betaf = kwargs.get("betaf", 1000)
         self._maxiter = kwargs.get("max_iterations", 500)
-        self._dbeta = (self._betaf - self._betai)/self._maxiter
+        self._dbeta = (self._betaf - self._betai) / self._maxiter
         self._delta = kwargs.get("delta", 0.5)
 
         self._nprint = 1
@@ -135,10 +135,10 @@ class SimAnnealer(Optimizer):
                 print(
                     f"Obtained E at step {nstep} with T={round(1/beta, 5)} is {round(energies[-1], 5)}"
                 )
-            
+
             beta += self._dbeta
 
-        print(f'\nAnnealing finishes here with acceptance rate AR={acc_rate/self._maxiter}')
+        print(f"\nAnnealing finishes here with acceptance rate AR={acc_rate/self._maxiter}")
         best_p = parameters
         return None, best_p
 

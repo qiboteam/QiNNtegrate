@@ -127,7 +127,7 @@ class UquarkPDF(TargetFunction):
     """In order to avoid having to install lhapdf,
     the data for the gluon for NNPDF4.0 is saved as a npz file"""
 
-    _eps = 1e-6
+    _eps = 1e-4
     max_par = 0
     max_ndim = 1
 

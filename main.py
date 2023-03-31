@@ -63,10 +63,12 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e3
         ytrue.append(target(xx))
         ypred.append(predictor.forward_pass(xx))
 
-    plt.plot(xlin[:, 0], ytrue, label="Target function")
-    plt.plot(xlin[:, 0], ypred, label="Simulation")
-    plt.legend()
-    plt.savefig(output_folder / "output_plot.pdf")
+    for scale in ["log", "linear"]:
+        plt.plot(xlin[:, 0], ytrue, label="Target function")
+        plt.plot(xlin[:, 0], ypred, label="Simulation")
+        plt.legend()
+        plt.xscale(scale)
+        plt.savefig(output_folder / f"output_plot_{scale}.pdf")
 
 
 def _generate_limits(xmin, xmax):

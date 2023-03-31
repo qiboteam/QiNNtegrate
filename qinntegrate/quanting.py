@@ -4,6 +4,9 @@ from copy import deepcopy
 import numpy as np
 from qibo import models, gates, hamiltonians, set_backend
 
+from .target import UquarkPDF
+
+
 set_backend("numpy")
 
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
@@ -64,7 +67,7 @@ class _UploadedParameter:
             x = np.log(self.x)
         else:
             x = self.x
-        return  x * self.theta + self.s
+        return x * self.theta + self.s
 
     @property
     def factor(self):
@@ -73,7 +76,7 @@ class _UploadedParameter:
             return 1.0
         derivative = 1.0
         if self.is_log:
-            derivative = 1.0/self.x
+            derivative = 1.0 / self.x
         return np.sign(self.s) * self.theta * derivative
 
     def __repr__(self):
@@ -220,7 +223,6 @@ class BaseVariationalObservable:
         return self._eigenfactor * res
 
 
-
 class ReuploadingAnsatz(BaseVariationalObservable):
     """Generates a variational quantum circuit in which we upload all the variables
     in each layer."""
@@ -272,7 +274,7 @@ class qPDFAnsatz(BaseVariationalObservable):
     Ref: https://arxiv.org/abs/2011.13934.
     """
 
-    _eps = 1e-7
+    _eps = UquarkPDF._eps
 
     def __init__(self, nqubits, nlayers, ndim=1, initial_state=None):
         """In this specific model we are going to use a 1 qubit circuit."""
@@ -298,8 +300,8 @@ class qPDFAnsatz(BaseVariationalObservable):
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit
-            The first parameter in every layer will be filled with logx
-            while the second will be filled with x
+        The first parameter in every layer will be filled with logx
+        while the second will be filled with x
         """
         circuit = models.Circuit(self._nqubits)
 
@@ -311,7 +313,7 @@ class qPDFAnsatz(BaseVariationalObservable):
                 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 circuit.add(gates.RZ(q=q, theta=0))
                 idx = len(circuit.get_parameters()) - 1
-                self._reuploading_indexes[q].append(idx)
+                self._reuploading_indexes[0].append(idx)
                 self._log_indexes.append(idx)
                 circuit.add(gates.RZ(q=q, theta=0))
                 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -319,7 +321,7 @@ class qPDFAnsatz(BaseVariationalObservable):
                 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 circuit.add(gates.RY(q=q, theta=0))
                 idx = len(circuit.get_parameters()) - 1
-                self._reuploading_indexes[q].append(idx)
+                self._reuploading_indexes[0].append(idx)
                 circuit.add(gates.RY(q=q, theta=0))
         # measurement gates
         circuit.add((gates.M(0)))
@@ -329,4 +331,8 @@ class qPDFAnsatz(BaseVariationalObservable):
         self._variational_params = np.array(circuit.get_parameters()).flatten()
 
 
-available_ansatz = {"base": BaseVariationalObservable, "reuploading": ReuploadingAnsatz, "qpdf" : qPDFAnsatz}
+available_ansatz = {
+    "base": BaseVariationalObservable,
+    "reuploading": ReuploadingAnsatz,
+    "qpdf": qPDFAnsatz,
+}
