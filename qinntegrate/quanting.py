@@ -259,14 +259,10 @@ class ReuploadingAnsatz(BaseVariationalObservable):
 
 
 class DeepReuploading(BaseVariationalObservable):
-
-    def __init__(self, nqubits, nlayers, ndim=1, initial_state=None): 
-        """
-        This ansatz is in principle equivalent to ReuploadingAnsatz, but in this case
-        we implement the full Fourier layer purposed in: https://arxiv.org/abs/1907.02085.
-        """
-        # inheriting the BaseModel features
-        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+    """
+    This ansatz is in principle equivalent to ReuploadingAnsatz, but in this case
+    we implement the full Fourier layer purposed in: https://arxiv.org/abs/1907.02085.
+    """
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
