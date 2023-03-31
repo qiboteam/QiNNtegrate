@@ -171,6 +171,7 @@ if __name__ == "__main__":
         output_folder = Path(tempfile.mkdtemp())
     else:
         output_folder = args.output
+    output_folder.mkdir(exist_ok=True)
 
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
@@ -219,7 +220,6 @@ if __name__ == "__main__":
 
     print(f"Saving results to {output_folder}")
 
-    output_folder.mkdir(exist_ok=True)
     best_p_path = output_folder / "best_p.npy"
     np.save(best_p_path, best_p)
     # And save also the parameters that we've used!
