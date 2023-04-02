@@ -77,9 +77,11 @@ class BaseVariationalObservable:
     https://qibo.science/qibo/stable/code-examples/advancedexamples.html#how-to-write-a-custom-variational-circuit-optimization
 
     In this case the inputs of the function are injected in the `ndim` first parameters.
+
+    If `derivative` is set to `False` the forward pass will be th exact circuit instead of the derivative
     """
 
-    def __init__(self, nqubits=3, nlayers=3, ndim=1, initial_state=None):
+    def __init__(self, nqubits=3, nlayers=3, ndim=1, initial_state=None, derivative=True):
         self._ndim = ndim
         self._nqubits = nqubits
         self._nlayers = nlayers
@@ -87,7 +89,14 @@ class BaseVariationalObservable:
         self._observable = None
         self._variational_params = []
         self._initial_state = initial_state
-        self._eigenfactor = GEN_EIGENVAL**ndim
+        self._derivative = derivative
+
+        if derivative:
+            self._eigenfactor = GEN_EIGENVAL**ndim
+            self._dim_derivatives = ndim
+        else:
+            self._eigenfactor = 1.0
+            self._dim_derivatives = 0
 
         # Set the reuploading indexes
         self._reuploading_indexes = [[] for _ in range(ndim)]
@@ -199,7 +208,10 @@ class BaseVariationalObservable:
         """
         y = self._upload_parameters(xarr)
 
-        shifts = _recursive_shifts([y], index=self._ndim)
+        if self._derivative:
+            shifts = _recursive_shifts([y], index=self._dim_derivatives)
+        else:
+            shifts = [y]
 
         res = 0.0
         for shift in shifts:
@@ -216,7 +228,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
     """Generates a variational quantum circuit in which we upload all the variables
     in each layer."""
 
-    def __init__(self, nqubits, nlayers, ndim=1, initial_state=None):
+    def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model the number of qubits is equal to the dimensionality
         of the problem."""
         if nqubits != ndim:
@@ -224,7 +236,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
                 "For ReuploadingAnsatz the number of qubits must be equal to the number of dimensions"
             )
         # inheriting the BaseModel features
-        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+        super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
@@ -344,14 +356,14 @@ class qPDFAnsatz(BaseVariationalObservable):
     Ref: https://arxiv.org/abs/2011.13934.
     """
 
-    def __init__(self, nqubits, nlayers, ndim=1, initial_state=None):
+    def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model we are going to use a 1 qubit circuit."""
         if nqubits != 1 or ndim != 1:
             raise ValueError(
                 "With this ansatz we tackle the 1d uquark qPDF and only 1 qubit is allowed."
             )
         # inheriting the BaseModel features
-        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+        super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""

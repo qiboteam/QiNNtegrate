@@ -63,8 +63,10 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e3
         ytrue.append(target(xx))
         ypred.append(predictor.forward_pass(xx))
 
-    plt.plot(xlin[:, 0], ytrue, label="Target function")
-    plt.plot(xlin[:, 0], ypred, label="Simulation")
+    plt.plot(xlin[:, 0], ytrue, label="Target function", alpha=0.7)
+    plt.plot(xlin[:, 0], ypred, label="Simulation", alpha=0.7)
+    plt.xlabel("x")
+    plt.ylabel("f(x)")
     plt.legend()
     plt.savefig(output_folder / "output_plot.pdf")
 
@@ -163,6 +165,12 @@ if __name__ == "__main__":
         type=valid_optimizer,
         default=valid_optimizer("CMA"),
     )
+    opt_parser.add_argument(
+        "--exact",
+        help="When active, the derivative is not taken and thus the training is C -> target",
+        action="store_true",
+    )
+    opt_parser.add_argument("--tol_error", help="Tolerance on the error function (for the optimizer that accept it)", default=1e-5, type=float)
 
     args = parser.parse_args()
 
@@ -176,7 +184,7 @@ if __name__ == "__main__":
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
 
-    observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim)
+    observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, derivative = not args.exact)
 
     # Prepare the integration limits
     xmin = args.xmin
@@ -198,22 +206,28 @@ if __name__ == "__main__":
         max_iterations=args.maxiter,
         padding=args.padding,
         normalize=not args.absolute,
+        tol_error=args.tol_error
     )
 
-    target_result, err = target_fun.integral(xmin, xmax)
-    print(f"The target result for the integral of [{target_fun}] is {target_result:.4} +- {err:.4}")
+    if args.exact:
+        res = target_result = "Derivative not taken"
+    else:
+        target_result, err = target_fun.integral(xmin, xmax)
+        print(
+            f"The target result for the integral of [{target_fun}] is {target_result:.4} +- {err:.4}"
+        )
 
-    # Let's see how this integral did
-    observable.set_parameters(best_p)
+        # Let's see how this integral did
+        observable.set_parameters(best_p)
 
-    # Prepare all combinations of limits
-    limits, signs = _generate_limits(xmin, xmax)
+        # Prepare all combinations of limits
+        limits, signs = _generate_limits(xmin, xmax)
 
-    res = 0.0
-    for int_limit, sign in zip(limits, signs):
-        res += sign * observable.execute_with_x(int_limit)
+        res = 0.0
+        for int_limit, sign in zip(limits, signs):
+            res += sign * observable.execute_with_x(int_limit)
 
-    print(f"And our trained result is {res:.4}")
+        print(f"And our trained result is {res:.4}")
 
     if args.ndim == 1:
         plot_integrand(observable, target_fun, xmin, xmax, output_folder)
