@@ -62,7 +62,7 @@ class Sin1d(TargetFunction):
         self._a2 = self._parameters[1] if len(self._parameters) > 1 else 0.0
 
     def __call__(self, xarr):
-        x = xarr[0]
+        x = np.atleast_1d(xarr)[0]
         return np.sin(self._a1 * x + self._a2)
 
     def __repr__(self):
@@ -127,18 +127,18 @@ class UquarkPDF(TargetFunction):
     """In order to avoid having to install lhapdf,
     the data for the gluon for NNPDF4.0 is saved as a npz file"""
 
-    _eps = 1e-6
+    _eps = 1e-4
     max_par = 0
     max_ndim = 1
 
     def build(self):
         xgrid = np.linspace(self._eps, 1, int(1 / self._eps))
-        gluon_raw = np.load(Path(__file__).parent / "uquark.npz").get("arr_0")
-        self._gluon = interp1d(xgrid, gluon_raw)
+        quark_raw = np.load(Path(__file__).parent / "uquark.npz").get("arr_0")
+        self._quark = interp1d(xgrid, quark_raw)
 
     def __call__(self, xarr):
         xarr = np.maximum(xarr, self._eps)
-        return self._gluon(xarr)
+        return np.abs(self._quark(xarr).squeeze())
 
     def __repr__(self):
         return f"xu(x)"

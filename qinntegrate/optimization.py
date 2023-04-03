@@ -26,7 +26,7 @@ class Optimizer:
         self._xarr = xarr
         self._options = {}
 
-        self._ytrue = np.array([target(i) for i in xarr])
+        self._ytrue = np.array([target(i) for i in xarr]).squeeze()
         self._ynorm = 1.0
         if normalize:
             self._ynorm = np.abs(self._ytrue) + 1e-7

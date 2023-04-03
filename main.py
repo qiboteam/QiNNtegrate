@@ -170,7 +170,12 @@ if __name__ == "__main__":
         help="When active, the derivative is not taken and thus the training is C -> target",
         action="store_true",
     )
-    opt_parser.add_argument("--tol_error", help="Tolerance on the error function (for the optimizer that accept it)", default=1e-5, type=float)
+    opt_parser.add_argument(
+        "--tol_error",
+        help="Tolerance on the error function (for the optimizer that accept it)",
+        default=1e-5,
+        type=float,
+    )
 
     args = parser.parse_args()
 
@@ -184,7 +189,9 @@ if __name__ == "__main__":
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
 
-    observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, derivative = not args.exact)
+    observable = args.ansatz(
+        nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, derivative=not args.exact
+    )
 
     # Prepare the integration limits
     xmin = args.xmin
@@ -206,8 +213,9 @@ if __name__ == "__main__":
         max_iterations=args.maxiter,
         padding=args.padding,
         normalize=not args.absolute,
-        tol_error=args.tol_error
+        tol_error=args.tol_error,
     )
+    observable.set_parameters(best_p)
 
     if args.exact:
         res = target_result = "Derivative not taken"
@@ -218,8 +226,6 @@ if __name__ == "__main__":
         )
 
         # Let's see how this integral did
-        observable.set_parameters(best_p)
-
         # Prepare all combinations of limits
         limits, signs = _generate_limits(xmin, xmax)
 

@@ -390,6 +390,7 @@ class qPDFAnsatz(BaseVariationalObservable):
         self._circuit = circuit
         # Get the initial parameters
         self._variational_params = np.array(circuit.get_parameters()).flatten()
+        self._variational_params = np.random.rand(len(self._variational_params))
 
 
 available_ansatz = {
