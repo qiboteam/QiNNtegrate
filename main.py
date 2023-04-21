@@ -64,7 +64,7 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e3
         ypred.append(predictor.forward_pass(xx))
 
     plt.plot(xlin[:, 0], ytrue, label="Target function")
-    plt.plot(xlin[:, 0], ypred, label="Simulation")
+    plt.plot(xlin[:, 0], ypred, label="Simulation", linewidth=1)
     plt.legend()
     plt.savefig(output_folder / "output_plot.pdf")
 
@@ -128,12 +128,12 @@ if __name__ == "__main__":
     circ_parser.add_argument(
         "--ansatz",
         help=f"Circuit ansatz, please choose one among {ANSATZS}",
-        default=valid_ansatz("base"),
+        default=valid_ansatz("reuploading"),
         type=valid_ansatz,
     )
     # Circuit features
     circ_parser.add_argument(
-        "--nqubits", help="Number of qubits for the VQE", default=3, type=check_qbits
+        "--nqubits", help="Number of qubits for the VQE", default=1, type=check_qbits
     )
     circ_parser.add_argument("--layers", help="Number of layers for the VQE", default=2, type=int)
 

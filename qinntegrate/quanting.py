@@ -98,8 +98,11 @@ class BaseVariationalObservable:
         # setting initial random parameters
         if self._circuit is None:
             raise ValueError("Circuit has not being built")
-        self._nparams = len(self._circuit.get_parameters())
-        self._variational_params = np.random.randn(self._nparams)
+
+        # Note that the total number of parameters in the circuit is the variational paramters + scaling
+        self._nparams = len(self._circuit.get_parameters()) + 1
+        self._variational_params = np.random.randn(self._nparams - 1)
+        self._scaling = 1.0
 
         # Visualizing the model
         self.print_model()
@@ -166,7 +169,7 @@ class BaseVariationalObservable:
         """
         bexec = self._observable.backend.execute_circuit  # is this needed?
         # Update the parameters for this run
-        circ_parameters = deepcopy(self.parameters)
+        circ_parameters = deepcopy(self._variational_params)
         for i, parameter in enumerate(uploaded_paramaters):
             if str(self._observable.backend) == "tensorflow":
                 circ_parameters[i].assign(parameter.y)
@@ -174,24 +177,27 @@ class BaseVariationalObservable:
                 circ_parameters[i] = parameter.y
         self._circuit.set_parameters(circ_parameters)
         state = bexec(circuit=self._circuit, initial_state=self._initial_state).state()
-        return self._observable.expectation(state)
+        return self._observable.expectation(state) * self._scaling
 
     @property
     def parameters(self):
-        return self._variational_params
+        return np.concatenate([[self._scaling], self._variational_params])
 
     @property
     def nparams(self):
-        return len(self._variational_params)
+        return self._nparams
 
-    def set_parameters(self, new_parameters):
+    def set_parameters(self, new_parameters_raw):
         """Save the new set of parameters for the circuit
         They only get burned into the circuit when the forward pass is called
         """
-
-        if new_parameters.shape[0] != self.nparams:
+        if new_parameters_raw.shape[0] != self.nparams:
             raise ValueError("Trying to set more parameters than those allowed by the circuit")
-        self._variational_params = new_parameters
+
+        # Ensure 1d
+        new_parameters = new_parameters_raw.flat
+        self._scaling = new_parameters[0]
+        self._variational_params = new_parameters[1:]
 
     def forward_pass(self, xarr):
         """Forward pass of the variational observable.
