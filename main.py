@@ -53,20 +53,35 @@ def valid_optimizer(val_raw):
     return valid_this(val_raw, available_optimizers, "Optimizer")
 
 
-def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e3)):
+def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e2)):
     """Plot botht he predictor and the target"""
-    xlin = np.linspace(xmin, xmax, npoints)
+    xmin = np.array(xmin)
+    xmax = np.array(xmax)
 
-    ytrue = []
-    ypred = []
-    for xx in xlin:
-        ytrue.append(target(xx))
-        ypred.append(predictor.forward_pass(xx))
+    for d in range(target.ndim):
 
-    plt.plot(xlin[:, 0], ytrue, label="Target function")
-    plt.plot(xlin[:, 0], ypred, label="Simulation", linewidth=1)
-    plt.legend()
-    plt.savefig(output_folder / "output_plot.pdf")
+        # Create a linear space in the dimension we are plotting
+        xlin = np.linspace(xmin[d], xmax[d], npoints)
+
+        for i in range(target.ndim):
+            # For every extra dimension do an extra plot so that we have more random points
+            # in the other dimensions
+
+            # Select a random point in the other dimensions
+            xran = np.random.rand(target.ndim)*(xmax-xmin) + xmin
+
+            ytrue = []
+            ypred = []
+            for xx in xlin:
+                xran[d] = xx
+                ytrue.append(target(xran))
+                ypred.append(predictor.forward_pass(xran))
+
+            plt.plot(xlin, ytrue, label=f"Target n{i}")
+            plt.plot(xlin, ypred, label=f"Simulation n{i}", linewidth=1)
+        plt.legend()
+        plt.savefig(output_folder / f"output_plot_d{d+1}.pdf")
+        plt.close()
 
 
 def _generate_limits(xmin, xmax):
@@ -186,6 +201,11 @@ if __name__ == "__main__":
     if xmax is None:
         xmax = [1.0] * target_fun.ndim
 
+    if len(xmin) != target_fun.ndim:
+        xmin = list(xmin)*target_fun.ndim
+    if len(xmax) != target_fun.ndim:
+        xmax = list(xmax)*target_fun.ndim
+
     # And... integrate!
     if args.load:
         initial_p = np.load(args.load)
@@ -214,9 +234,7 @@ if __name__ == "__main__":
         res += sign * observable.execute_with_x(int_limit)
 
     print(f"And our trained result is {res:.4}")
-
-    if args.ndim == 1:
-        plot_integrand(observable, target_fun, xmin, xmax, output_folder)
+    plot_integrand(observable, target_fun, xmin, xmax, output_folder)
 
     print(f"Saving results to {output_folder}")
 
