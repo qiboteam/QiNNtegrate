@@ -112,11 +112,22 @@ def _generate_limits(xmin, xmax):
     return limits, signs
 
 
+def _generate_integration_x(xmin, xmax, padding=False, npoints=int(5e2)):
+    """Generate a set of random poitns within the integration limits"""
+    xmin = np.array(xmin)
+    xmax = np.array(xmax)
+    if padding:
+        xdelta = xmax - xmin
+        xmin -= 0.1 * xdelta
+        xmax += 0.1 * xdelta
+    return np.random.rand(npoints, len(xmin)) * (xmax - xmin) + xmin
+
+
 if __name__ == "__main__":
     parser = ArgumentParser()
 
-    parser.add_argument("--xmin", help="Integration limit xi", nargs="+", type=float)
-    parser.add_argument("--xmax", help="Integration limit xf", nargs="+", type=float)
+    parser.add_argument("--xmin", help="Integration limit xi", nargs="+", type=float, default=[0.0])
+    parser.add_argument("--xmax", help="Integration limit xf", nargs="+", type=float, default=[1.0])
     parser.add_argument("-o", "--output", help="Output folder", type=Path, default=None)
     parser.add_argument("-l", "--load", help="Load initial parameters from", type=Path)
 
@@ -190,31 +201,32 @@ if __name__ == "__main__":
 
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
-
     observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim)
 
-    # Prepare the integration limits
     xmin = args.xmin
     xmax = args.xmax
 
     # Check whether what the user gave makes sense and otherwise crash
-    if xmin is None:
-        xmin = [0.0] * target_fun.ndim
-    elif len(xmin) != target_fun.ndim:
+    if len(xmin) != target_fun.ndim:
         if len(xmin) != 1:
             raise ValueError(
                 "Please give either as many `xmin` lower limits as dimensions or just one (which will be used for all dimensions"
             )
         xmin = xmin * target_fun.ndim
 
-    if xmax is None:
-        xmax = [1.0] * target_fun.ndim
-    elif len(xmax) != target_fun.ndim:
+    if len(xmax) != target_fun.ndim:
         if len(xmax) != 1:
             raise ValueError(
                 "Please give either as many `xmax` upper limits as dimensions or just one (which will be used for all dimensions"
             )
         xmax = xmax * target_fun.ndim
+
+    xarr = _generate_integration_x(xmin, xmax, padding=args.padding)
+
+    if target_fun.override:
+        xmin = target_fun.xmin
+        xmax = target_fun.xmax
+        xarr = np.array(target_fun.xgrid).reshape(-1, 1)
 
     print(f" > Using {xmin} as lower limit of the integral")
     print(f" > Using {xmax} as upper limit of the integral")
@@ -225,11 +237,11 @@ if __name__ == "__main__":
         observable.set_parameters(initial_p)
 
     best_p = launch_optimization(
+        xarr,
         observable,
         target_fun,
         args.optimizer,
         max_iterations=args.maxiter,
-        padding=args.padding,
         normalize=not args.absolute,
     )
 

@@ -16,8 +16,17 @@ from scipy.interpolate import interp1d
 
 
 class TargetFunction:
+    """
+    Base class protocol for all target functions
+    This class contains a number of parameterS:
+        max_par: maximum number of parameters allowed by the target function
+        max_ndim: maximum number of dimensions allowed by the target function
+        override: whether the target function should override the xgrid used for training
+    """
+
     max_par = 1e10
     max_ndim = 20
+    override = False
 
     def __init__(self, parameters=(), ndim=1):
         self._parameters = np.array(parameters)
@@ -47,6 +56,19 @@ class TargetFunction:
 
     def __repr__(self):
         return self.__class__.__name__
+
+    # When override == True, the target function should also implement the following properties
+    @property
+    def xmin(self):
+        return [0.0]
+
+    @property
+    def xmax(self):
+        return [1.0]
+
+    @property
+    def xgrid(self):
+        pass
 
 
 class Sin1d(TargetFunction):
@@ -125,23 +147,37 @@ class LepageTest(TargetFunction):
 
 class UquarkPDF(TargetFunction):
     """In order to avoid having to install lhapdf,
-    the data for the gluon for NNPDF4.0 is saved as a npz file"""
+    the data for the uquark for NNPDF4.0 is saved as a npz file"""
 
-    _eps = 1e-6
     max_par = 0
     max_ndim = 1
+    override = True
 
     def build(self):
-        xgrid = np.linspace(self._eps, 1, int(1 / self._eps))
-        gluon_raw = np.load(Path(__file__).parent / "uquark.npz").get("arr_0")
-        self._gluon = interp1d(xgrid, gluon_raw)
+        npz_data = np.load(Path(__file__).parent / "uquark.npz")
+        self._xgrid = npz_data.get("x")
+        self._uvals = npz_data.get("y")
+        self._eps = np.min(self._xgrid)
+        self._uquark = interp1d(self._xgrid, self._uvals)
 
     def __call__(self, xarr):
         xarr = np.maximum(xarr, self._eps)
-        return self._gluon(xarr)
+        return self._uquark(xarr)
 
     def __repr__(self):
         return f"xu(x)"
+
+    @property
+    def xmin(self):
+        return [self._eps]
+
+    @property
+    def xmax(self):
+        return [np.max(self._xgrid)]
+
+    @property
+    def xgrid(self):
+        return self._xgrid
 
 
 available_targets = {

@@ -157,31 +157,19 @@ class SimAnnealer(Optimizer):
 
 
 def launch_optimization(
+    xarr,
     predictor,
     target,
     optimizer_class,
-    xmin=(0.0,),
-    xmax=(1.0,),
-    npoints=int(5e2),
     max_iterations=100,
     max_evals=int(1e5),
     tol_error=1e-5,
-    padding=False,
     normalize=True,
 ):
     """Receives a predictor (can be a circuit, NN, etc... which inherits from quanting.BaseVariationalObservable)
     and a target function (which inherits from target.TargetFunction) and performs the training
     """
-    # Generate a set of random points within the integration limits
-    xmin = np.array(xmin)
-    xmax = np.array(xmax)
-    if padding:
-        xdelta = xmax - xmin
-        xmin -= 0.1 * xdelta
-        xmax += 0.1 * xdelta
-    xrand = np.random.rand(npoints, target.ndim) * (xmax - xmin) + xmin
-
-    optimizer = optimizer_class(xrand, target, predictor, normalize=normalize)
+    optimizer = optimizer_class(xarr, target, predictor, normalize=normalize)
 
     # And... optimize!
     # Use whatever is the current value of the parameters as the initial point
