@@ -59,7 +59,6 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e2
     xmax = np.array(xmax)
 
     for d in range(target.ndim):
-
         # Create a linear space in the dimension we are plotting
         xlin = np.linspace(xmin[d], xmax[d], npoints)
 
@@ -68,7 +67,7 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e2
             # in the other dimensions
 
             # Select a random point in the other dimensions
-            xran = np.random.rand(target.ndim)*(xmax-xmin) + xmin
+            xran = np.random.rand(target.ndim) * (xmax - xmin) + xmin
 
             ytrue = []
             ypred = []
@@ -187,6 +186,7 @@ if __name__ == "__main__":
     else:
         output_folder = args.output
     output_folder.mkdir(exist_ok=True)
+    print(output_folder)
 
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
@@ -196,15 +196,28 @@ if __name__ == "__main__":
     # Prepare the integration limits
     xmin = args.xmin
     xmax = args.xmax
+
+    # Check whether what the user gave makes sense and otherwise crash
     if xmin is None:
         xmin = [0.0] * target_fun.ndim
+    elif len(xmin) != target_fun.ndim:
+        if len(xmin) != 1:
+            raise ValueError(
+                "Please give either as many `xmin` lower limits as dimensions or just one (which will be used for all dimensions"
+            )
+        xmin = xmin * target_fun.ndim
+
     if xmax is None:
         xmax = [1.0] * target_fun.ndim
+    elif len(xmax) != target_fun.ndim:
+        if len(xmax) != 1:
+            raise ValueError(
+                "Please give either as many `xmax` upper limits as dimensions or just one (which will be used for all dimensions"
+            )
+        xmax = xmax * target_fun.ndim
 
-    if len(xmin) != target_fun.ndim:
-        xmin = list(xmin)*target_fun.ndim
-    if len(xmax) != target_fun.ndim:
-        xmax = list(xmax)*target_fun.ndim
+    print(f" > Using {xmin} as lower limit of the integral")
+    print(f" > Using {xmax} as upper limit of the integral")
 
     # And... integrate!
     if args.load:
@@ -236,7 +249,7 @@ if __name__ == "__main__":
     print(f"And our trained result is {res:.4}")
     plot_integrand(observable, target_fun, xmin, xmax, output_folder)
 
-    print(f"Saving results to {output_folder}")
+    print(f"Saving results to {output_folder}\n")
 
     best_p_path = output_folder / "best_p.npy"
     np.save(best_p_path, best_p)
