@@ -157,12 +157,13 @@ class UquarkPDF(TargetFunction):
         npz_data = np.load(Path(__file__).parent / "uquark.npz")
         self._xgrid = npz_data.get("x")
         self._uvals = npz_data.get("y")
-        self._eps = np.min(self._xgrid)
+        self._eps = 0.1  # np.min(self._xgrid)
         self._uquark = interp1d(self._xgrid, self._uvals)
 
     def __call__(self, xarr):
         xarr = np.maximum(xarr, self._eps)
-        return self._uquark(xarr)
+        # return np.sin(2.*xarr + np.pi/2).squeeze()
+        return self._uquark(xarr).squeeze()
 
     def __repr__(self):
         return f"xu(x)"
@@ -177,7 +178,9 @@ class UquarkPDF(TargetFunction):
 
     @property
     def xgrid(self):
-        return self._xgrid
+        im = np.where(self._xgrid > self.xmin)[0][0]
+        ip = np.where(self._xgrid < self.xmax)[0][-1]
+        return self._xgrid[im:ip]
 
 
 available_targets = {
