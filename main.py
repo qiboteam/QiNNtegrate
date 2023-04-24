@@ -53,20 +53,34 @@ def valid_optimizer(val_raw):
     return valid_this(val_raw, available_optimizers, "Optimizer")
 
 
-def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e3)):
+def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e2)):
     """Plot botht he predictor and the target"""
-    xlin = np.linspace(xmin, xmax, npoints)
+    xmin = np.array(xmin)
+    xmax = np.array(xmax)
 
-    ytrue = []
-    ypred = []
-    for xx in xlin:
-        ytrue.append(target(xx))
-        ypred.append(predictor.forward_pass(xx))
+    for d in range(target.ndim):
+        # Create a linear space in the dimension we are plotting
+        xlin = np.linspace(xmin[d], xmax[d], npoints)
 
-    plt.plot(xlin[:, 0], ytrue, label="Target function")
-    plt.plot(xlin[:, 0], ypred, label="Simulation")
-    plt.legend()
-    plt.savefig(output_folder / "output_plot.pdf")
+        for i in range(target.ndim):
+            # For every extra dimension do an extra plot so that we have more random points
+            # in the other dimensions
+
+            # Select a random point in the other dimensions
+            xran = np.random.rand(target.ndim) * (xmax - xmin) + xmin
+
+            ytrue = []
+            ypred = []
+            for xx in xlin:
+                xran[d] = xx
+                ytrue.append(target(xran))
+                ypred.append(predictor.forward_pass(xran))
+
+            plt.plot(xlin, ytrue, label=f"Target n{i}")
+            plt.plot(xlin, ypred, label=f"Simulation n{i}", linewidth=1)
+        plt.legend()
+        plt.savefig(output_folder / f"output_plot_d{d+1}.pdf")
+        plt.close()
 
 
 def _generate_limits(xmin, xmax):
@@ -128,12 +142,12 @@ if __name__ == "__main__":
     circ_parser.add_argument(
         "--ansatz",
         help=f"Circuit ansatz, please choose one among {ANSATZS}",
-        default=valid_ansatz("base"),
+        default=valid_ansatz("reuploading"),
         type=valid_ansatz,
     )
     # Circuit features
     circ_parser.add_argument(
-        "--nqubits", help="Number of qubits for the VQE", default=3, type=check_qbits
+        "--nqubits", help="Number of qubits for the VQE", default=1, type=check_qbits
     )
     circ_parser.add_argument("--layers", help="Number of layers for the VQE", default=2, type=int)
 
@@ -172,6 +186,7 @@ if __name__ == "__main__":
     else:
         output_folder = args.output
     output_folder.mkdir(exist_ok=True)
+    print(output_folder)
 
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
@@ -181,10 +196,28 @@ if __name__ == "__main__":
     # Prepare the integration limits
     xmin = args.xmin
     xmax = args.xmax
+
+    # Check whether what the user gave makes sense and otherwise crash
     if xmin is None:
         xmin = [0.0] * target_fun.ndim
+    elif len(xmin) != target_fun.ndim:
+        if len(xmin) != 1:
+            raise ValueError(
+                "Please give either as many `xmin` lower limits as dimensions or just one (which will be used for all dimensions"
+            )
+        xmin = xmin * target_fun.ndim
+
     if xmax is None:
         xmax = [1.0] * target_fun.ndim
+    elif len(xmax) != target_fun.ndim:
+        if len(xmax) != 1:
+            raise ValueError(
+                "Please give either as many `xmax` upper limits as dimensions or just one (which will be used for all dimensions"
+            )
+        xmax = xmax * target_fun.ndim
+
+    print(f" > Using {xmin} as lower limit of the integral")
+    print(f" > Using {xmax} as upper limit of the integral")
 
     # And... integrate!
     if args.load:
@@ -214,11 +247,9 @@ if __name__ == "__main__":
         res += sign * observable.execute_with_x(int_limit)
 
     print(f"And our trained result is {res:.4}")
+    plot_integrand(observable, target_fun, xmin, xmax, output_folder)
 
-    if args.ndim == 1:
-        plot_integrand(observable, target_fun, xmin, xmax, output_folder)
-
-    print(f"Saving results to {output_folder}")
+    print(f"Saving results to {output_folder}\n")
 
     best_p_path = output_folder / "best_p.npy"
     np.save(best_p_path, best_p)
