@@ -157,7 +157,7 @@ class UquarkPDF(TargetFunction):
         npz_data = np.load(Path(__file__).parent / "uquark.npz")
         self._xgrid = npz_data.get("x")
         self._uvals = npz_data.get("y")
-        self._eps = 0.1  # np.min(self._xgrid)
+        self._eps = np.min(self._xgrid)
         self._uquark = interp1d(self._xgrid, self._uvals)
 
     def __call__(self, xarr):

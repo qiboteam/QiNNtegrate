@@ -25,7 +25,7 @@ class Optimizer:
 
     _method = None
 
-    def __init__(self, xarr, target, predictor, normalize=True, nbatch=50, randomize_batch=True):
+    def __init__(self, xarr, target, predictor, normalize=True, nbatch=100, randomize_batch=True):
         self._target = target
         self._predictor = predictor
         self._xarr = xarr
@@ -112,12 +112,16 @@ class BFGS(Optimizer):
         # a new set of points will be drawn in the callback option
         super().__init__(*args, randomize_batch=False, **kwargs)
 
-    def _callback(self, params):
-        self._current_subset = np.random.choice(self._arange, size=self._nbatch, replace=False)
+    #     def _callback(self, params):
+    #         self._current_subset = np.random.choice(self._arange, size=self._nbatch, replace=False)
 
     def set_options(self, **kwargs):
         self._options = {"disp": True, "return_all": True}
         print(f"Initial parameters: {self._predictor.parameters}")
+
+
+class LBFGS(Optimizer):
+    _method = "L-BFGS-B"
 
 
 class SGD(Optimizer):
@@ -243,5 +247,6 @@ available_optimizers = {
     "cma": CMA, 
     "bfgs": BFGS, 
     "sgd": SGD, 
+    "lbfgs": LBFGS,
     "annealing": SimAnnealer,
     "basinhopping": BasinHopping}

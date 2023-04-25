@@ -79,7 +79,7 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e2
             plt.plot(xlin, ytrue, label=f"Target n{i}")
             plt.plot(xlin, ypred, label=f"Simulation n{i}", linewidth=1)
         plt.legend()
-        plt.savefig(output_folder / f"output_plot_d{d+1}.pdf")
+        plt.savefig(output_folder / f"output_plot_d{d+1}.png")
         plt.close()
 
 
