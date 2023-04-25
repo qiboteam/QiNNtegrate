@@ -161,8 +161,6 @@ class UquarkPDF(TargetFunction):
         self._uquark = interp1d(self._xgrid, self._uvals)
 
     def __call__(self, xarr):
-        xarr = np.maximum(xarr, self._eps)
-        # return np.sin(2.*xarr + np.pi/2).squeeze()
         return self._uquark(xarr).squeeze()
 
     def __repr__(self):
@@ -174,6 +172,7 @@ class UquarkPDF(TargetFunction):
 
     @property
     def xmax(self):
+        return [0.7]
         return [np.max(self._xgrid)]
 
     @property
