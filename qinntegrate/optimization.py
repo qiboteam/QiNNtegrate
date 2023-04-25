@@ -6,6 +6,7 @@ import random
 import time
 import numpy as np
 from qibo.optimizers import optimize
+from scipy.optimize import basinhopping
 
 
 def mse(y, p, norm=1.0):
@@ -88,6 +89,18 @@ class SGD(Optimizer):
             "learning_rate": 0.025,
             "nepochs": kwargs["max_iterations"],  # maximum number of iterations
         }
+
+
+class BasinHopping(Optimizer):
+    _method = "basinhopping"
+
+    def set_options(self, **kwargs):
+        self._niter = kwargs.get("max_iterations", 5)
+        self._disp = kwargs.get("disp", True)
+
+    def optimize(self, initial_p):
+        print(f"Initial parameters: {self._predictor.parameters}")
+        return basinhopping(func=self.loss, x0=initial_p, niter=self._niter, disp=self._disp, niter_success=20)
 
 
 class SimAnnealer(Optimizer):
@@ -197,4 +210,9 @@ def launch_optimization(
     return best_p
 
 
-available_optimizers = {"cma": CMA, "bfgs": BFGS, "sgd": SGD, "annealing": SimAnnealer}
+available_optimizers = {
+    "cma": CMA, 
+    "bfgs": BFGS, 
+    "sgd": SGD, 
+    "annealing": SimAnnealer,
+    "basinhopping": BasinHopping}
