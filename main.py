@@ -76,9 +76,12 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e2
                 ytrue.append(target(xran))
                 ypred.append(predictor.forward_pass(xran))
 
-            plt.plot(xlin, ytrue, label=f"Target n{i}")
-            plt.plot(xlin, ypred, label=f"Simulation n{i}", linewidth=1)
+            plt.plot(xlin, ytrue, label=f"Target n{i}", linewidth=2.5, color='red', alpha=0.6, ls='-')
+            plt.plot(xlin, ypred, label=f"Simulation n{i}", linewidth=1.5, color='blue', alpha=0.7, ls='-.')
         plt.legend()
+        plt.grid(True)
+        plt.xlabel(r'$\vec{x}$')
+        plt.ylabel(r'$\vec{y}$')
         plt.savefig(output_folder / f"output_plot_d{d+1}.pdf")
         plt.close()
 
