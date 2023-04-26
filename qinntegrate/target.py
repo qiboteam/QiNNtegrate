@@ -172,7 +172,6 @@ class UquarkPDF(TargetFunction):
 
     @property
     def xmax(self):
-        return [0.7]
         return [np.max(self._xgrid)]
 
     @property

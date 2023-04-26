@@ -145,8 +145,11 @@ class BasinHopping(Optimizer):
 
     def optimize(self, initial_p):
         print(f"Initial parameters: {self._predictor.parameters}")
-        res = basinhopping(func=self.loss, x0=initial_p, niter=self._niter, disp=self._disp, niter_success=2)
-        return None , res['x']
+        res = basinhopping(
+            func=self.loss, x0=initial_p, niter=self._niter, disp=self._disp, niter_success=2
+        )
+        return None, res["x"]
+
 
 class SimAnnealer(Optimizer):
     """Simulated annealing implementation for VQCs model optimization"""
@@ -244,9 +247,10 @@ def launch_optimization(
 
 
 available_optimizers = {
-    "cma": CMA, 
-    "bfgs": BFGS, 
-    "sgd": SGD, 
+    "cma": CMA,
+    "bfgs": BFGS,
+    "sgd": SGD,
     "lbfgs": LBFGS,
     "annealing": SimAnnealer,
-    "basinhopping": BasinHopping}
+    "basinhopping": BasinHopping,
+}

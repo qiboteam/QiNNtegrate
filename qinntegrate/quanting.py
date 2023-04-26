@@ -404,6 +404,15 @@ class qPDFAnsatz(BaseVariationalObservable):
         # Get the initial parameters
         self._variational_params = np.array(circuit.get_parameters()).flatten()
 
+    def execute_with_x(self, xarr):
+        ret = super().execute_with_x(xarr)
+        return xarr[0] * ret
+
+    def forward_pass(self, xarr):
+        circ = super().execute_with_x(xarr)
+        der = super().forward_pass(xarr)
+        return xarr[0] * der + circ
+
 
 available_ansatz = {
     "base": BaseVariationalObservable,
