@@ -17,37 +17,64 @@ class Optimizer:
     """
     The optimizer.optimize method uses the same convention as qibo, and it returns
     an object for which element 1 is the best set of parameters
+
+    The value of nbatch is the number of points that are used in each evaluation of the loss
+    if randomize_batch is `True` the batch will be randomly sampled for each evaluation of the loss
+    unless they correspond to the same step
     """
 
     _method = None
 
-    def __init__(self, xarr, target, predictor, normalize=True):
+    def __init__(self, xarr, target, predictor, normalize=True, nbatch=100, randomize_batch=True):
         self._target = target
         self._predictor = predictor
         self._xarr = xarr
         self._options = {}
 
+        # Ensure that the batch is not bigger than the number of points we have
+        ntotal = xarr.shape[0]
+        self._nbatch = np.minimum(ntotal, nbatch)
+
+        # Now prepare the first batch
+        self._arange = np.arange(0, ntotal)
+        self._current_subset = np.random.choice(self._arange, size=self._nbatch, replace=False)
+        self._random_batch = randomize_batch
+
         self._ytrue = np.array([target(i) for i in xarr])
-        self._ynorm = 1.0
+        self._ynorm = np.ones_like(self._ytrue)
         if normalize:
             self._ynorm = np.abs(self._ytrue) + 1e-7
 
-    def loss(self, parameters):
+    def loss(self, parameters, same_step=False, **kwargs):
         """Set the parameters in the predictor
-        and compare the results with ytrue in a MSE way"""
+        and compare the results with ytrue in a MSE way
+        if same_step is `False` a new set of points will be drawn, otherwise the previous one will be use
+        This is necessary for numerical gradient descent or other algorithms which needs to evaluate the same points
+        """
         self._predictor.set_parameters(parameters)
 
-        # Compute the prediction for the points in x
-        pred_y = []
-        for xarr in self._xarr:
-            pred_y.append(self._predictor.forward_pass(xarr))
-        pred_y = np.array(pred_y)
+        if self._random_batch and not same_step:
+            # Draw a new batch
+            idx_subset = np.random.choice(self._arange, size=self._nbatch, replace=False)
+            self._current_subset = idx_subset
+        else:
+            idx_subset = self._current_subset
 
-        return mse(pred_y, self._ytrue, norm=self._ynorm)
+        xarr = self._xarr[idx_subset]
+        ytrue = self._ytrue[idx_subset]
+        ynorm = self._ynorm[idx_subset]
+
+        # Compute the prediction for the points in x
+        pred_y = np.array([self._predictor.forward_pass(xx) for xx in xarr])
+
+        return mse(pred_y, ytrue, norm=ynorm)
 
     @abstractmethod
     def set_options(self, **kwargs):
         """Cast the options passed into the format expected by the optimizer"""
+        pass
+
+    def _callback(self, *args, **kwargs):
         pass
 
     def optimize(self, initial_p):
@@ -55,7 +82,13 @@ class Optimizer:
             raise ValueError(
                 f"The optimizer {self.__class__.__name__} does not implement any methods"
             )
-        return optimize(self.loss, initial_p, method=self._method, options=self._options)
+        return optimize(
+            self.loss,
+            initial_p,
+            method=self._method,
+            options=self._options,
+            callback=self._callback,
+        )
 
 
 class CMA(Optimizer):
@@ -74,9 +107,21 @@ class CMA(Optimizer):
 class BFGS(Optimizer):
     _method = "BFGS"
 
+    def __init__(self, *args, randomize_batch=False, **kwargs):
+        # The BFGS needs to set the randomize_batch option to False
+        # a new set of points will be drawn in the callback option
+        super().__init__(*args, randomize_batch=False, **kwargs)
+
+    #     def _callback(self, params):
+    #         self._current_subset = np.random.choice(self._arange, size=self._nbatch, replace=False)
+
     def set_options(self, **kwargs):
         self._options = {"disp": True, "return_all": True}
         print(f"Initial parameters: {self._predictor.parameters}")
+
+
+class LBFGS(Optimizer):
+    _method = "L-BFGS-B"
 
 
 class SGD(Optimizer):
@@ -100,8 +145,11 @@ class BasinHopping(Optimizer):
 
     def optimize(self, initial_p):
         print(f"Initial parameters: {self._predictor.parameters}")
-        res = basinhopping(func=self.loss, x0=initial_p, niter=self._niter, disp=self._disp, niter_success=2)
-        return None , res['x']
+        res = basinhopping(
+            func=self.loss, x0=initial_p, niter=self._niter, disp=self._disp, niter_success=2
+        )
+        return None, res["x"]
+
 
 class SimAnnealer(Optimizer):
     """Simulated annealing implementation for VQCs model optimization"""
@@ -132,17 +180,17 @@ class SimAnnealer(Optimizer):
             ene1 = self.loss(parameters)
             deltas = np.random.uniform(-self._delta, self._delta, nparams)
             parameters += deltas
-            ene2 = self.loss(parameters)
-            energies.append(ene2)
+            ene2 = self.loss(parameters, same_step=True)
             # evaluating Boltzmann energies
             p = min(1.0, np.exp(-beta * (ene2 - ene1)))
-
             r = random.uniform(0, 1)
 
             if r >= p:
                 parameters -= deltas
-                energies[-1] = ene1
+                energies.append(ene1)
                 acc_rate -= 1
+            else:
+                energies.append(ene2)
 
             if (nstep := step + 1) % self._nprint == 0:
                 print(
@@ -157,31 +205,19 @@ class SimAnnealer(Optimizer):
 
 
 def launch_optimization(
+    xarr,
     predictor,
     target,
     optimizer_class,
-    xmin=(0.0,),
-    xmax=(1.0,),
-    npoints=int(5e2),
     max_iterations=100,
     max_evals=int(1e5),
     tol_error=1e-5,
-    padding=False,
     normalize=True,
 ):
     """Receives a predictor (can be a circuit, NN, etc... which inherits from quanting.BaseVariationalObservable)
     and a target function (which inherits from target.TargetFunction) and performs the training
     """
-    # Generate a set of random points within the integration limits
-    xmin = np.array(xmin)
-    xmax = np.array(xmax)
-    if padding:
-        xdelta = xmax - xmin
-        xmin -= 0.1 * xdelta
-        xmax += 0.1 * xdelta
-    xrand = np.random.rand(npoints, target.ndim) * (xmax - xmin) + xmin
-
-    optimizer = optimizer_class(xrand, target, predictor, normalize=normalize)
+    optimizer = optimizer_class(xarr, target, predictor, normalize=normalize)
 
     # And... optimize!
     # Use whatever is the current value of the parameters as the initial point
@@ -211,8 +247,10 @@ def launch_optimization(
 
 
 available_optimizers = {
-    "cma": CMA, 
-    "bfgs": BFGS, 
-    "sgd": SGD, 
+    "cma": CMA,
+    "bfgs": BFGS,
+    "sgd": SGD,
+    "lbfgs": LBFGS,
     "annealing": SimAnnealer,
-    "basinhopping": BasinHopping}
+    "basinhopping": BasinHopping,
+}
