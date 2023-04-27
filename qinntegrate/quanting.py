@@ -8,6 +8,7 @@ set_backend("numpy")
 
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
+DERIVATIVE = True
 
 
 def _recursive_shifts(arrays, index=1, s=SHIFT):
@@ -50,6 +51,7 @@ class _UploadedParameter:
     index: int  # The parameter index in the circuit
     dimension: int  # The dimension this parameter corresponds to
     s: float = 0.0
+    is_log: bool = False
 
     def shift(self, s):
         return dataclasses.replace(self, s=s)
@@ -59,14 +61,20 @@ class _UploadedParameter:
 
     @property
     def y(self):
-        return self.x * self.theta + self.s
+        if self.is_log:
+            x = np.log(self.x)
+        else:
+            x = self.x
+        return x * self.theta + self.s
 
     @property
     def factor(self):
-        # The shift-factor is only active once per dimension
         if self.s == 0.0:
             return 1.0
-        return np.sign(self.s) * self.theta
+        ret = np.sign(self.s) * self.theta
+        if self.is_log:
+            ret /= self.x
+        return ret
 
     def __repr__(self):
         return f"{self.y} ({self.factor}, idx: {self.index})"
@@ -205,7 +213,10 @@ class BaseVariationalObservable:
         """
         y = self._upload_parameters(xarr)
 
-        shifts = _recursive_shifts([y], index=self._ndim)
+        if DERIVATIVE:
+            shifts = _recursive_shifts([y], index=self._ndim)
+        else:
+            shifts = [y]
 
         res = 0.0
         for shift in shifts:
@@ -350,14 +361,21 @@ class qPDFAnsatz(BaseVariationalObservable):
     Ref: https://arxiv.org/abs/2011.13934.
     """
 
-    def __init__(self, nqubits, nlayers, ndim=1, initial_state=None):
+    def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model we are going to use a 1 qubit circuit."""
         if nqubits != 1 or ndim != 1:
             raise ValueError(
                 "With this ansatz we tackle the 1d uquark qPDF and only 1 qubit is allowed."
             )
         # inheriting the BaseModel features
-        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+        super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
+
+    def _upload_parameters(self, xarr):
+        y = super()._upload_parameters(xarr)
+        # Every first upload in the model is done as a logarithm
+        for liny in y[::2]:
+            liny.is_log = True
+        return y
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
@@ -365,25 +383,35 @@ class qPDFAnsatz(BaseVariationalObservable):
         circuit = models.Circuit(self._nqubits)
 
         # then we add parametric gates
-        for _ in range(self._nlayers):
+        for i in range(self._nlayers):
             # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             # THIS ROTATION MUST BE FILLED WITH: log(x)
             # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            circuit.add(gates.RZ(q=0, theta=0))
-            self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
-            circuit.add(gates.RZ(q=0, theta=0))
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # THIS ROTATION MUST BE FILLED WITH: x
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             circuit.add(gates.RY(q=0, theta=0))
             self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
             circuit.add(gates.RY(q=0, theta=0))
+            if i != (self._nlayers - 1):
+                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # THIS ROTATION MUST BE FILLED WITH: x
+                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                circuit.add(gates.RZ(q=0, theta=0))
+                self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
+                circuit.add(gates.RZ(q=0, theta=0))
         # measurement gates
         circuit.add((gates.M(0)))
 
         self._circuit = circuit
         # Get the initial parameters
         self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+    def execute_with_x(self, xarr):
+        ret = super().execute_with_x(xarr)
+        return xarr[0] * ret
+
+    def forward_pass(self, xarr):
+        circ = super().execute_with_x(xarr)
+        der = super().forward_pass(xarr)
+        return xarr[0] * der + circ
 
 
 available_ansatz = {
