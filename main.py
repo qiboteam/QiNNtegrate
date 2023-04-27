@@ -94,7 +94,7 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e2
         plt.title("Integrand fit")
         plt.xlabel(r"$x$")
         plt.ylabel(r"$y$")
-        plt.savefig(output_folder / f"output_plot_d{d+1}.pdf")
+        plt.savefig(output_folder / f"output_plot_d{d+1}.png")
         plt.close()
 
 
