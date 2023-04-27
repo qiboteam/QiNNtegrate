@@ -80,8 +80,9 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e2
             plt.plot(xlin, ypred, label=f"Simulation n{i}", linewidth=1.5, color='blue', alpha=0.7, ls='-.')
         plt.legend()
         plt.grid(True)
-        plt.xlabel(r'$\vec{x}$')
-        plt.ylabel(r'$\vec{y}$')
+        plt.title("Integrand fit")
+        plt.xlabel(r'$x$')
+        plt.ylabel(r'$y$')
         plt.savefig(output_folder / f"output_plot_d{d+1}.pdf")
         plt.close()
 
