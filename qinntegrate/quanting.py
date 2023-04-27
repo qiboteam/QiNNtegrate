@@ -2,7 +2,7 @@
 import dataclasses
 from copy import deepcopy
 import numpy as np
-from qibo import models, gates, hamiltonians, set_backend
+from qibo import models, gates, hamiltonians, symbols, set_backend
 
 set_backend("numpy")
 
@@ -79,10 +79,11 @@ class BaseVariationalObservable:
     In this case the inputs of the function are injected in the `ndim` first parameters.
     """
 
-    def __init__(self, nqubits=3, nlayers=3, ndim=1, initial_state=None):
+    def __init__(self, nqubits=3, nlayers=3, nshots=10000, ndim=1, initial_state=None):
         self._ndim = ndim
         self._nqubits = nqubits
         self._nlayers = nlayers
+        self._nshots = nshots
         self._circuit = None
         self._observable = None
         self._variational_params = []
@@ -142,9 +143,7 @@ class BaseVariationalObservable:
 
     def build_observable(self):
         """Build step of the observable"""
-        m0 = (1 / self._nqubits) * hamiltonians.Z(self._nqubits).matrix
-        ham = hamiltonians.Hamiltonian(self._nqubits, m0)
-        self._observable = ham
+        self._observable = hamiltonians.SymbolicHamiltonian(np.prod([ symbols.Z(i) for i in range(self._nqubits) ]))
 
     def _upload_parameters(self, xarr):
         """Receives an array of x and returns the "uploaded" rotations
@@ -176,8 +175,18 @@ class BaseVariationalObservable:
             else:
                 circ_parameters[i] = parameter.y
         self._circuit.set_parameters(circ_parameters)
-        state = bexec(circuit=self._circuit, initial_state=self._initial_state).state()
-        return self._observable.expectation(state) * self._scaling
+
+        if self._nshots is None:
+            expv = self._observable.expectation(
+                bexec(circuit=self._circuit, initial_state=self._initial_state).state()
+            )
+        else:     
+            expv = bexec(
+                circuit=self._circuit,
+                initial_state=self._initial_state,
+                nshots=self._nshots).expectation_from_samples(self._observable)
+            
+        return expv * self._scaling
 
     @property
     def parameters(self):
@@ -222,7 +231,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
     """Generates a variational quantum circuit in which we upload all the variables
     in each layer."""
 
-    def __init__(self, nqubits, nlayers, ndim=1, initial_state=None):
+    def __init__(self, nqubits, nlayers, nshots, ndim=1, initial_state=None):
         """In this specific model the number of qubits is equal to the dimensionality
         of the problem."""
         if nqubits != ndim:
@@ -230,7 +239,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
                 "For ReuploadingAnsatz the number of qubits must be equal to the number of dimensions"
             )
         # inheriting the BaseModel features
-        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+        super().__init__(nqubits, nlayers, nshots, ndim=ndim, initial_state=initial_state)
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""

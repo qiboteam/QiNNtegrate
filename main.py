@@ -154,6 +154,8 @@ if __name__ == "__main__":
         "--nqubits", help="Number of qubits for the VQE", default=1, type=check_qbits
     )
     circ_parser.add_argument("--layers", help="Number of layers for the VQE", default=2, type=int)
+    circ_parser.add_argument("--nshots", help="Number of shots for each circuit evaluation", default=None, type=int)
+
 
     opt_parser = parser.add_argument_group("Optimization definition")
     opt_parser.add_argument(
@@ -195,7 +197,7 @@ if __name__ == "__main__":
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
 
-    observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim)
+    observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, nshots=args.nshots)
 
     # Prepare the integration limits
     xmin = args.xmin
