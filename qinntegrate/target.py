@@ -14,6 +14,13 @@ import numpy as np
 from scipy.integrate import nquad
 from scipy.interpolate import interp1d
 
+try:
+    from pdfflow import mkPDF
+except ModuleNotFoundError:
+
+    def mkPDF(*args, **kwargs):
+        raise ModuleNotFoundError("Please install `pdfflow`, `pip install pdfflow`")
+
 
 class TargetFunction:
     """
@@ -146,8 +153,9 @@ class LepageTest(TargetFunction):
 
 
 class UquarkPDF(TargetFunction):
-    """In order to avoid having to install lhapdf,
-    the data for the uquark for NNPDF4.0 is saved as a npz file"""
+    """1d version of the uquark PDF
+    Doesn't need to have a PDF interpolation library installed as
+    the resutls for NNPDF4.0 are saved as an npz file"""
 
     max_par = 0
     max_ndim = 1
@@ -181,10 +189,61 @@ class UquarkPDF(TargetFunction):
         return self._xgrid[im:ip]
 
 
+class UquarkPDF2d(TargetFunction):
+    """Implementation of the u-quark PDF from NNPDF4.0
+    It requires two dimensions (x,) and (Q,) and pdfflow needs to be installed
+    """
+
+    max_par = 0
+    max_ndim = 2
+    override = True
+
+    _min_x = 1e-4
+    _min_q = 20
+    _max_x = 0.7
+    _max_q = 8000
+
+    def build(self):
+        npoints = 50
+        x = np.concatenate(
+            [
+                np.logspace(np.log10(self._min_x), -1, npoints // 2),
+                np.linspace(0.1, self._max_x, npoints // 2),
+            ]
+        )
+        q = np.linspace(self._min_q, self._max_q, npoints)
+
+        xx, qq = np.meshgrid(x, q)
+        self._xgrid = np.column_stack([xx.ravel(), qq.ravel()])
+
+        self._pdf = mkPDF("nnpdf40/0", dirname=Path(__file__).parent)
+
+    def __call__(self, xarr):
+        x = xarr[0]
+        q = xarr[1]
+        return self._pdf.py_xfxQ2(2, [x], [q]).numpy()
+
+    def __repr__(self):
+        return f"xu(x)"
+
+    @property
+    def xmin(self):
+        return [self._min_x, self._min_q]
+
+    @property
+    def xmax(self):
+        return [self._max_x, self._max_q]
+
+    @property
+    def xgrid(self):
+        return self._xgrid
+
+
 available_targets = {
     "sin1d": Sin1d,
     "cosnd": Cosnd,
     "sind": Sind,
     "lepage": LepageTest,
     "uquark": UquarkPDF,
+    "uquark2d": UquarkPDF2d,
 }

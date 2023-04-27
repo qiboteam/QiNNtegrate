@@ -356,23 +356,26 @@ class qPDFAnsatz(BaseVariationalObservable):
     Generates a circuit which follows the qPDF ansatz.
     The following implementation works only for 1 flavour; uquark in this case.
     Ref: https://arxiv.org/abs/2011.13934.
+
+    It accepts two input variables (two dimensions) but only the first one will have the logarithm upload
     """
 
     def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model we are going to use a 1 qubit circuit."""
-        if nqubits != 1 or ndim != 1:
-            raise ValueError(
-                "With this ansatz we tackle the 1d uquark qPDF and only 1 qubit is allowed."
-            )
+        if nqubits != 1:
+            raise ValueError("The qPDF ansatz allows only 1 qbit")
+        if ndim > 2:
+            raise ValueError("Only 2 dimensions can be fitted with qPDF")
+        self._logarithm_variables = []
         # inheriting the BaseModel features
         super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
 
     def _upload_parameters(self, xarr):
-        y = super()._upload_parameters(xarr)
-        # Every first upload in the model is done as a logarithm
-        for liny in y[::2]:
-            liny.is_log = True
-        return y
+        yarr = super()._upload_parameters(xarr)
+        for y in yarr:
+            if y.index in self._logarithm_variables:
+                y.is_log = True
+        return yarr
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
@@ -385,7 +388,9 @@ class qPDFAnsatz(BaseVariationalObservable):
             # THIS ROTATION MUST BE FILLED WITH: log(x)
             # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             circuit.add(gates.RY(q=0, theta=0))
-            self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
+            idx = len(circuit.get_parameters()) - 1
+            self._reuploading_indexes[0].append(idx)
+            self._logarithm_variables.append(idx)
             circuit.add(gates.RY(q=0, theta=0))
             if i != (self._nlayers - 1):
                 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

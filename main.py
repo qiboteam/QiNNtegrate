@@ -241,7 +241,7 @@ if __name__ == "__main__":
     if target_fun.override:
         xmin = target_fun.xmin
         xmax = target_fun.xmax
-        xarr = np.array(target_fun.xgrid).reshape(-1, 1)
+        xarr = np.array(target_fun.xgrid).reshape(-1, target_fun.ndim)
 
     print(f" > Using {xmin} as lower limit of the integral")
     print(f" > Using {xmax} as upper limit of the integral")
