@@ -25,7 +25,7 @@ class Optimizer:
 
     _method = None
 
-    def __init__(self, xarr, target, predictor, normalize=True, nbatch=100, randomize_batch=True):
+    def __init__(self, xarr, target, predictor, normalize=True, nbatch=200, randomize_batch=True):
         self._target = target
         self._predictor = predictor
         self._xarr = xarr
@@ -116,12 +116,24 @@ class BFGS(Optimizer):
     #         self._current_subset = np.random.choice(self._arange, size=self._nbatch, replace=False)
 
     def set_options(self, **kwargs):
-        self._options = {"disp": True, "return_all": True}
+        self._options = {
+            "disp": True,
+            "return_all": True,
+            "maxiter": kwargs.get("max_iterations", 100),
+            "ftol": kwargs.get("tol_error"),
+        }
         print(f"Initial parameters: {self._predictor.parameters}")
 
 
-class LBFGS(Optimizer):
+class LBFGS(BFGS):
     _method = "L-BFGS-B"
+
+    def set_options(self, **kwargs):
+        self._options = {
+            "disp": True,
+            "maxiter": kwargs.get("max_iterations", 100),
+        }
+        print(f"Initial parameters: {self._predictor.parameters}")
 
 
 class SGD(Optimizer):

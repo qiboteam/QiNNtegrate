@@ -171,18 +171,15 @@ class BaseVariationalObservable:
         y = self._upload_parameters(xarr)
         return self._execute(y)
 
-    def _execute(self, uploaded_paramaters):
+    def _execute(self, uploaded_parameters):
         """Obtain the value of the observable for the given set of uploaded parameters
         by evaluating the circuit in those and computing the expectation value of the observable
         """
         bexec = self._observable.backend.execute_circuit  # is this needed?
         # Update the parameters for this run
         circ_parameters = deepcopy(self._variational_params)
-        for i, parameter in enumerate(uploaded_paramaters):
-            if str(self._observable.backend) == "tensorflow":
-                circ_parameters[i].assign(parameter.y)
-            else:
-                circ_parameters[i] = parameter.y
+        for parameter in uploaded_parameters:
+            circ_parameters[parameter.index] = parameter.y
         self._circuit.set_parameters(circ_parameters)
         state = bexec(circuit=self._circuit, initial_state=self._initial_state).state()
         return self._observable.expectation(state) * self._scaling
