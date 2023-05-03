@@ -83,16 +83,17 @@ class Sin1d(TargetFunction):
     y = sin(a1*x + a2)
     """
 
-    max_par = 2
+    max_par = 3
     max_ndim = 1
 
     def build(self):
-        self._a1 = self._parameters[0] if len(self._parameters) > 0 else 1.0
-        self._a2 = self._parameters[1] if len(self._parameters) > 1 else 0.0
+        self._a0 = self._parameters[0] if len(self._parameters) > 0 else 1.0
+        self._a1 = self._parameters[1] if len(self._parameters) > 1 else 1.0
+        self._a2 = self._parameters[2] if len(self._parameters) > 2 else 0.0
 
     def __call__(self, xarr):
         x = xarr[0]
-        return np.sin(self._a1 * x + self._a2)
+        return np.sin(self._a1 * x + self._a2) * self._a0
 
     def __repr__(self):
         return "1d sin"
@@ -180,6 +181,7 @@ class UquarkPDF(TargetFunction):
 
     @property
     def xmax(self):
+        return [0.8]
         return [np.max(self._xgrid)]
 
     @property

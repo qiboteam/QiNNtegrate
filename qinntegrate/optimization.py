@@ -107,6 +107,9 @@ class CMA(Optimizer):
 class BFGS(Optimizer):
     _method = "BFGS"
 
+    def __init__(self, *args, randomize_batch=False, **kwargs):
+        super().__init__(*args, randomize_batch=False, **kwargs)
+
     def _callback(self, params):
         if self._random_batch:
             self._current_subset = np.random.choice(self._arange, size=self._nbatch, replace=False)
