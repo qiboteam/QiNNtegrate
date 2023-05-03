@@ -201,7 +201,7 @@ class UquarkPDF2d(TargetFunction):
     _min_x = 1e-4
     _min_q = 20
     _max_x = 0.7
-    _max_q = 8000
+    _max_q = 20
 
     def build(self):
         npoints = 50
@@ -225,6 +225,16 @@ class UquarkPDF2d(TargetFunction):
 
     def __repr__(self):
         return f"xu(x)"
+
+    def integral(self, xmin, xmax):
+        npoints = 1000
+        xgrid = np.linspace(xmin[0], xmax[0], npoints)
+        q2 = xmin[1]
+        print(f"Computing the integral for {q2=}")
+        q2grid = [q2] * npoints
+        vals = self._pdf.py_xfxQ2(2, xgrid, q2grid)
+        xdelta = xmax[0] - xmin[0]
+        return (np.average(vals) * xdelta, 0.0)
 
     @property
     def xmin(self):

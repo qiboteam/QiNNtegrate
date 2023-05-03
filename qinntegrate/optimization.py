@@ -107,13 +107,9 @@ class CMA(Optimizer):
 class BFGS(Optimizer):
     _method = "BFGS"
 
-    def __init__(self, *args, randomize_batch=False, **kwargs):
-        # The BFGS needs to set the randomize_batch option to False
-        # a new set of points will be drawn in the callback option
-        super().__init__(*args, randomize_batch=False, **kwargs)
-
-    #     def _callback(self, params):
-    #         self._current_subset = np.random.choice(self._arange, size=self._nbatch, replace=False)
+    def _callback(self, params):
+        if self._random_batch:
+            self._current_subset = np.random.choice(self._arange, size=self._nbatch, replace=False)
 
     def set_options(self, **kwargs):
         self._options = {
@@ -150,6 +146,11 @@ class SGD(Optimizer):
 
 class BasinHopping(Optimizer):
     _method = "basinhopping"
+
+    def __init__(self, *args, randomize_batch=False, nbatch=200, **kwargs):
+        if nbatch < 200:
+            nbatch = 200
+        super().__init__(*args, nbatch=nbatch, randomize_batch=False, **kwargs)
 
     def set_options(self, **kwargs):
         self._niter = kwargs.get("max_iterations", 5)

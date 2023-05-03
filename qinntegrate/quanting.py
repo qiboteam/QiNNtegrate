@@ -96,6 +96,7 @@ class BaseVariationalObservable:
         self._variational_params = []
         self._initial_state = initial_state
         self._eigenfactor = GEN_EIGENVAL**ndim
+        self.nderivatives = ndim  # By default, derive all dimensions
 
         # Set the reuploading indexes
         self._reuploading_indexes = [[] for _ in range(ndim)]
@@ -211,7 +212,7 @@ class BaseVariationalObservable:
         y = self._upload_parameters(xarr)
 
         if DERIVATIVE:
-            shifts = _recursive_shifts([y], index=self._ndim)
+            shifts = _recursive_shifts([y], index=self.nderivatives)
         else:
             shifts = [y]
 
@@ -367,8 +368,8 @@ class qPDFAnsatz(BaseVariationalObservable):
         if ndim > 2:
             raise ValueError("Only 2 dimensions can be fitted with qPDF")
         self._logarithm_variables = []
-        # inheriting the BaseModel features
         super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
+        self.nderivatives = 1  # The derivative is performed only on the first dimension
 
     def _upload_parameters(self, xarr):
         yarr = super()._upload_parameters(xarr)
@@ -392,6 +393,13 @@ class qPDFAnsatz(BaseVariationalObservable):
             self._reuploading_indexes[0].append(idx)
             self._logarithm_variables.append(idx)
             circuit.add(gates.RY(q=0, theta=0))
+            if self._ndim > 1:
+                # Add a gate for the second dimension
+                circuit.add(gates.RY(q=0, theta=0))
+                idx = len(circuit.get_parameters()) - 1
+                self._reuploading_indexes[1].append(idx)
+                self._logarithm_variables.append(idx)
+                circuit.add(gates.RY(q=0, theta=0))
             if i != (self._nlayers - 1):
                 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 # THIS ROTATION MUST BE FILLED WITH: x

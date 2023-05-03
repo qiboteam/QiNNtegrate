@@ -53,7 +53,7 @@ def valid_optimizer(val_raw):
     return valid_this(val_raw, available_optimizers, "Optimizer")
 
 
-def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e2)):
+def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
     """Plot botht he predictor and the target"""
     xmin = np.array(xmin)
     xmax = np.array(xmax)
@@ -76,15 +76,12 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e2
                 ytrue.append(target(xran))
                 ypred.append(predictor.forward_pass(xran))
 
-            plt.plot(
-                xlin, ytrue, label=f"Target n{i}", linewidth=2.5, color="red", alpha=0.6, ls="-"
-            )
+            plt.plot(xlin, ytrue, label=f"Target n{i}", linewidth=2.5, alpha=0.6, ls="-")
             plt.plot(
                 xlin,
                 ypred,
                 label=f"Simulation n{i}",
                 linewidth=1.5,
-                color="blue",
                 alpha=0.7,
                 ls="-.",
             )
@@ -98,12 +95,18 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e2
         plt.close()
 
 
-def _generate_limits(xmin, xmax):
+def _generate_limits(xmin, xmax, dimensions=1):
     """Generate the lists of limits to evaluate the primitive at
+
+    For the dimensions that are not integrated the upper limits
+    will be used as value with which the circuit will be called
+
     Parameters
     ---------
         xmin: list of inferior limits (one per dimension)
         xmax: list of superior limits
+        dimensions: int
+            dimensions over which the integral is taken
 
     Returns
     -------
@@ -112,12 +115,13 @@ def _generate_limits(xmin, xmax):
     """
     limits = [np.array([])]
     signs = [1.0]
-    for xm, xp in zip(xmin, xmax):
+    for i, (xm, xp) in enumerate(zip(xmin, xmax)):
         next_l = []
         next_s = []
         for curr_l, curr_s in zip(limits, signs):
-            next_l.append(np.concatenate([curr_l, [xm]]))
-            next_s.append(-curr_s)
+            if i < dimensions:
+                next_l.append(np.concatenate([curr_l, [xm]]))
+                next_s.append(-curr_s)
 
             next_l.append(np.concatenate([curr_l, [xp]]))
             next_s.append(curr_s)
@@ -267,7 +271,7 @@ if __name__ == "__main__":
     observable.set_parameters(best_p)
 
     # Prepare all combinations of limits
-    limits, signs = _generate_limits(xmin, xmax)
+    limits, signs = _generate_limits(xmin, xmax, dimensions=observable.nderivatives)
 
     res = 0.0
     for int_limit, sign in zip(limits, signs):
