@@ -25,7 +25,7 @@ class Optimizer:
 
     _method = None
 
-    def __init__(self, xarr, target, predictor, normalize=True, nbatch=200, randomize_batch=True):
+    def __init__(self, xarr, target, predictor, normalize=True, nbatch=500, randomize_batch=True):
         self._target = target
         self._predictor = predictor
         self._xarr = xarr
@@ -131,6 +131,8 @@ class LBFGS(BFGS):
         self._options = {
             "disp": True,
             "maxiter": kwargs.get("max_iterations", 100),
+            "gtol": 1e-12,
+            "ftol": 1e-18,
         }
         print(f"Initial parameters: {self._predictor.parameters}")
 

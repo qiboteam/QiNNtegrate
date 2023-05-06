@@ -95,7 +95,6 @@ class BaseVariationalObservable:
         self._observable = None
         self._variational_params = []
         self._initial_state = initial_state
-        self._eigenfactor = GEN_EIGENVAL**ndim
         self.nderivatives = ndim  # By default, derive all dimensions
 
         # Set the reuploading indexes
@@ -115,6 +114,10 @@ class BaseVariationalObservable:
 
         # Visualizing the model
         self.print_model()
+
+    @property
+    def _eigenfactor(self):
+        return GEN_EIGENVAL**self.nderivatives
 
     def __repr__(self):
         return self.__class__.__name__
@@ -393,13 +396,15 @@ class qPDFAnsatz(BaseVariationalObservable):
             self._reuploading_indexes[0].append(idx)
             self._logarithm_variables.append(idx)
             circuit.add(gates.RY(q=0, theta=0))
+
             if self._ndim > 1:
                 # Add a gate for the second dimension
                 circuit.add(gates.RY(q=0, theta=0))
                 idx = len(circuit.get_parameters()) - 1
-                self._reuploading_indexes[1].append(idx)
-                self._logarithm_variables.append(idx)
+                # self._reuploading_indexes[1].append(idx)
+                # self._logarithm_variables.append(idx)
                 circuit.add(gates.RY(q=0, theta=0))
+
             if i != (self._nlayers - 1):
                 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 # THIS ROTATION MUST BE FILLED WITH: x

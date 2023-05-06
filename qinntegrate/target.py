@@ -181,7 +181,7 @@ class UquarkPDF(TargetFunction):
 
     @property
     def xmax(self):
-        return [0.8]
+        return [0.7]
         return [np.max(self._xgrid)]
 
     @property
@@ -201,19 +201,20 @@ class UquarkPDF2d(TargetFunction):
     override = True
 
     _min_x = 1e-4
-    _min_q = 20
+    _min_q = 1.65**2
     _max_x = 0.7
-    _max_q = 20
+    _max_q = 1.65**2
 
     def build(self):
-        npoints = 50
+        nx = 100
+        nq = 1
         x = np.concatenate(
             [
-                np.logspace(np.log10(self._min_x), -1, npoints // 2),
-                np.linspace(0.1, self._max_x, npoints // 2),
+                np.logspace(np.log10(self._min_x), -1, nx // 2),
+                np.linspace(0.1, self._max_x, nx // 2),
             ]
         )
-        q = np.linspace(self._min_q, self._max_q, npoints)
+        q = np.linspace(self._min_q, self._max_q, nq)
 
         xx, qq = np.meshgrid(x, q)
         self._xgrid = np.column_stack([xx.ravel(), qq.ravel()])
