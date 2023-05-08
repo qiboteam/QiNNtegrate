@@ -499,7 +499,7 @@ class ObservablePool:
         [i.get() for i in pids]
 
     def vectorized_forward_pass(self, all_xarr):
-        return self._pool.map(worker_forward_pass, all_xarr)
+        return np.array(self._pool.map(worker_forward_pass, all_xarr))
 
     # The rest are passed silently to the original ansatz
     @property
