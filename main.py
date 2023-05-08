@@ -67,14 +67,18 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
             # in the other dimensions
 
             # Select a random point in the other dimensions
-            xran = np.random.rand(target.ndim) * (xmax - xmin) + xmin
+            xran_origin = np.random.rand(target.ndim) * (xmax - xmin) + xmin
 
             ytrue = []
-            ypred = []
+            all_xs = []
+
             for xx in xlin:
+                xran = copy.deepcopy(xran_origin)
                 xran[d] = xx
                 ytrue.append(target(xran))
-                ypred.append(predictor.forward_pass(xran))
+                all_xs.append(xran)
+
+            ypred = predictor.vectorized_forward_pass(all_xs)
 
             plt.plot(xlin, ytrue, label=f"Target n{i}", linewidth=2.5, alpha=0.6, ls="-")
             plt.plot(
@@ -220,8 +224,9 @@ if __name__ == "__main__":
 
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
-    observable = generate_ansatz_pool(args.ansatz, nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, nprocesses=4)
-#     observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim)
+    observable = generate_ansatz_pool(
+        args.ansatz, nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, nprocesses=16
+    )
 
     xmin = args.xmin
     xmax = args.xmax

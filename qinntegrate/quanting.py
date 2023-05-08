@@ -1,6 +1,8 @@
 """Qibo interface of the integrator"""
+import os
+import time
 import dataclasses
-from multiprocessing import Pool
+from multiprocessing import Pool, Manager
 from copy import deepcopy
 import numpy as np
 from qibo import models, gates, hamiltonians, set_backend
@@ -88,7 +90,7 @@ class BaseVariationalObservable:
     In this case the inputs of the function are injected in the `ndim` first parameters.
     """
 
-    def __init__(self, nqubits=3, nlayers=3, ndim=1, initial_state=None):
+    def __init__(self, nqubits=3, nlayers=3, ndim=1, initial_state=None, verbose=True):
         self._ndim = ndim
         self._nqubits = nqubits
         self._nlayers = nlayers
@@ -112,16 +114,20 @@ class BaseVariationalObservable:
         self._nparams = len(self._circuit.get_parameters()) + 1
         self._variational_params = np.random.randn(self._nparams - 1)
         self._scaling = 1.0
+        self.pid = None
 
         # Visualizing the model
-        self.print_model()
+        if verbose:
+            self.print_model()
 
     @property
     def _eigenfactor(self):
         return GEN_EIGENVAL**self.nderivatives
 
     def __repr__(self):
-        return self.__class__.__name__
+        if self.pid is None:
+            return f"{self.__class__.__name__}"
+        return f"{self.__class__.__name__} running in process id: {self.pid}"
 
     def build_circuit(self):
         """Build step of the circuit"""
@@ -197,15 +203,11 @@ class BaseVariationalObservable:
     def nparams(self):
         return self._nparams
 
-    def set_parameters(self, new_parameters_raw):
+    def set_parameters(self, new_parameters):
         """Save the new set of parameters for the circuit
         They only get burned into the circuit when the forward pass is called
+        The parameters must enter as a 1d array
         """
-        if new_parameters_raw.shape[0] != self.nparams:
-            raise ValueError("Trying to set more parameters than those allowed by the circuit")
-
-        # Ensure 1d
-        new_parameters = new_parameters_raw.flat
         self._scaling = new_parameters[0]
         self._variational_params = new_parameters[1:]
 
@@ -439,58 +441,88 @@ available_ansatz = {
     "qpdf": qPDFAnsatz,
 }
 
-# Worker functions
+#### Pooling management
+
+
 def initialize_pool(observable_class, nqubits, nlayers, ndim):
     global my_ansatz
-    my_ansatz = observable_class(nqubits=nqubits, nlayers=nlayers, ndim=ndim)
+    my_ansatz = observable_class(nqubits=nqubits, nlayers=nlayers, ndim=ndim, verbose=False)
+    my_ansatz.pid = os.getpid()
 
-def worker_set_parameters(parameters):
+
+def worker_set_parameters(parameters, running_pool):
     my_ansatz.set_parameters(parameters)
 
-def worker_get_att(attribute):
-    return getattr(my_ansatz, attribute)
+    # Remove one element of running_pool and wait
+    _ = running_pool.pop()
+    while running_pool:
+        time.sleep(1e-6)
+    return my_ansatz.pid
+
 
 def worker_forward_pass(xarr):
     return my_ansatz.forward_pass(xarr)
 
-def worker_execute_with_x(xarr):
-    return my_ansatz.execute_with_x(xarr)
+
+def worker_get_ansatz(_):
+    return my_ansatz
 
 
 class ObservablePool:
-
     def __init__(self, pool):
         self._pool = pool
         self._nprocesses = pool._processes
+        self._ansatz = pool.map(worker_get_ansatz, [None])[0]
+        self._ansatz.print_model()
+        self._ret = []
+        m = Manager()
+        self._shr = m.list()
 
+    # Pooled calls
     def set_parameters(self, parameters):
-        self._pool.map(worker_set_parameters, [parameters]*self._nprocesses)
+        parameters = parameters.reshape(-1)
 
-    @property
-    def nderivatives(self):
-        return self._pool.map(worker_get_att, ["nderivatives"])[0]
+        # Make sure that the main process ansatz has the right parameters
+        self._ansatz.set_parameters(parameters)
 
-    @property
-    def parameters(self):
-        return self._pool.map(worker_get_att, ["parameters"])[0]
+        # Now prepare a list with locks
+        for _ in range(self._nprocesses):
+            self._shr.append(None)
 
-    def forward_pass(self, xarr):
-        return self._pool.map(worker_forward_pass, [xarr])
+        # Send the parameter set as async calls
+        pids = [
+            self._pool.apply_async(worker_set_parameters, args=(parameters, self._shr))
+            for _ in range(self._nprocesses)
+        ]
+
+        # And wait until all threads are done before continuing
+        [i.get() for i in pids]
 
     def vectorized_forward_pass(self, all_xarr):
         return self._pool.map(worker_forward_pass, all_xarr)
 
-    def execute_with_x(self, xarr):
-        return self._pool.map(worker_execute_with_x, [xarr])[0]
+    # The rest are passed silently to the original ansatz
+    @property
+    def nderivatives(self):
+        return self._ansatz.nderivatives
 
+    @property
+    def parameters(self):
+        return self._ansatz.parameters
+
+    def forward_pass(self, xarr):
+        return self._ansatz.forward_pass(xarr)
+
+    def execute_with_x(self, xarr):
+        return self._ansatz.execute_with_x(xarr)
 
 
 def generate_ansatz_pool(observable_class, nqubits=1, nlayers=1, ndim=1, nprocesses=1):
     """Generate a pool of ansatz"""
-    pool = Pool(processes=nprocesses,
-            initializer=initialize_pool,
-            initargs=(observable_class, nqubits, nlayers, ndim)
-            )
+    pool = Pool(
+        processes=nprocesses,
+        initializer=initialize_pool,
+        initargs=(observable_class, nqubits, nlayers, ndim),
+    )
 
     return ObservablePool(pool)
-
