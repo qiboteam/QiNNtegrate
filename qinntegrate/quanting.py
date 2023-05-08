@@ -237,7 +237,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
     """Generates a variational quantum circuit in which we upload all the variables
     in each layer."""
 
-    def __init__(self, nqubits, nlayers, ndim=1, initial_state=None):
+    def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model the number of qubits is equal to the dimensionality
         of the problem."""
         if nqubits != ndim:
@@ -245,7 +245,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
                 "For ReuploadingAnsatz the number of qubits must be equal to the number of dimensions"
             )
         # inheriting the BaseModel features
-        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+        super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
