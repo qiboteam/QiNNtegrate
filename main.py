@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 
 from qinntegrate.target import available_targets
 from qinntegrate.optimization import launch_optimization, available_optimizers
-from qinntegrate.quanting import available_ansatz
+from qinntegrate.quanting import available_ansatz, generate_ansatz_pool
 
 TARGETS = list(available_targets.keys())
 ANSATZS = list(available_ansatz.keys())
@@ -220,7 +220,8 @@ if __name__ == "__main__":
 
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
-    observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim)
+    observable = generate_ansatz_pool(args.ansatz, nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, nprocesses=4)
+#     observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim)
 
     xmin = args.xmin
     xmax = args.xmax

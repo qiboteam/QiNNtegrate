@@ -1,5 +1,6 @@
 """Qibo interface of the integrator"""
 import dataclasses
+from multiprocessing import Pool
 from copy import deepcopy
 import numpy as np
 from qibo import models, gates, hamiltonians, set_backend
@@ -437,3 +438,59 @@ available_ansatz = {
     "verticup": VerticalUploading,
     "qpdf": qPDFAnsatz,
 }
+
+# Worker functions
+def initialize_pool(observable_class, nqubits, nlayers, ndim):
+    global my_ansatz
+    my_ansatz = observable_class(nqubits=nqubits, nlayers=nlayers, ndim=ndim)
+
+def worker_set_parameters(parameters):
+    my_ansatz.set_parameters(parameters)
+
+def worker_get_att(attribute):
+    return getattr(my_ansatz, attribute)
+
+def worker_forward_pass(xarr):
+    return my_ansatz.forward_pass(xarr)
+
+def worker_execute_with_x(xarr):
+    return my_ansatz.execute_with_x(xarr)
+
+
+class ObservablePool:
+
+    def __init__(self, pool):
+        self._pool = pool
+        self._nprocesses = pool._processes
+
+    def set_parameters(self, parameters):
+        self._pool.map(worker_set_parameters, [parameters]*self._nprocesses)
+
+    @property
+    def nderivatives(self):
+        return self._pool.map(worker_get_att, ["nderivatives"])[0]
+
+    @property
+    def parameters(self):
+        return self._pool.map(worker_get_att, ["parameters"])[0]
+
+    def forward_pass(self, xarr):
+        return self._pool.map(worker_forward_pass, [xarr])
+
+    def vectorized_forward_pass(self, all_xarr):
+        return self._pool.map(worker_forward_pass, all_xarr)
+
+    def execute_with_x(self, xarr):
+        return self._pool.map(worker_execute_with_x, [xarr])[0]
+
+
+
+def generate_ansatz_pool(observable_class, nqubits=1, nlayers=1, ndim=1, nprocesses=1):
+    """Generate a pool of ansatz"""
+    pool = Pool(processes=nprocesses,
+            initializer=initialize_pool,
+            initargs=(observable_class, nqubits, nlayers, ndim)
+            )
+
+    return ObservablePool(pool)
+
