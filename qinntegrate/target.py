@@ -201,13 +201,13 @@ class UquarkPDF2d(TargetFunction):
     override = True
 
     _min_x = 1e-4
-    _min_q = 1.65**2
+    _min_q = 6.65**2
     _max_x = 0.7
-    _max_q = 1.65**2
+    _max_q = 6.65**2
 
     def build(self):
-        nx = 100
-        nq = 1
+        nx = 70
+        nq = 10
         x = np.concatenate(
             [
                 np.logspace(np.log10(self._min_x), -1, nx // 2),

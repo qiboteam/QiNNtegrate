@@ -401,8 +401,8 @@ class qPDFAnsatz(BaseVariationalObservable):
                 # Add a gate for the second dimension
                 circuit.add(gates.RY(q=0, theta=0))
                 idx = len(circuit.get_parameters()) - 1
-                # self._reuploading_indexes[1].append(idx)
-                # self._logarithm_variables.append(idx)
+                self._reuploading_indexes[1].append(idx)
+                self._logarithm_variables.append(idx)
                 circuit.add(gates.RY(q=0, theta=0))
 
             if i != (self._nlayers - 1):
@@ -412,6 +412,7 @@ class qPDFAnsatz(BaseVariationalObservable):
                 circuit.add(gates.RZ(q=0, theta=0))
                 self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
                 circuit.add(gates.RZ(q=0, theta=0))
+
         # measurement gates
         circuit.add((gates.M(0)))
 

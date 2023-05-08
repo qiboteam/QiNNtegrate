@@ -25,7 +25,7 @@ class Optimizer:
 
     _method = None
 
-    def __init__(self, xarr, target, predictor, normalize=True, nbatch=500, randomize_batch=True):
+    def __init__(self, xarr, target, predictor, normalize=True, nbatch=1000, randomize_batch=True):
         self._target = target
         self._predictor = predictor
         self._xarr = xarr
@@ -152,10 +152,8 @@ class SGD(Optimizer):
 class BasinHopping(Optimizer):
     _method = "basinhopping"
 
-    def __init__(self, *args, randomize_batch=False, nbatch=200, **kwargs):
-        if nbatch < 200:
-            nbatch = 200
-        super().__init__(*args, nbatch=nbatch, randomize_batch=False, **kwargs)
+    def __init__(self, *args, randomize_batch=False, **kwargs):
+        super().__init__(*args, randomize_batch=False, **kwargs)
 
     def set_options(self, **kwargs):
         self._niter = kwargs.get("max_iterations", 5)
