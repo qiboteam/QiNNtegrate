@@ -444,12 +444,64 @@ class qPDFAnsatz(BaseVariationalObservable):
         return xarr[0] * der + circ
 
 
+class qPDF_2q(BaseVariationalObservable):
+    """Alternative version for the qPDF problem."""
+
+    def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
+        """In this specific model we are going to use a 2 qubit circuit."""
+        if nqubits != 2 or ndim != 2:
+            raise ValueError(
+                "With this ansatz we tackle the 1d uquark qPDF and with a 2 qubits model."
+            )
+        # inheriting the BaseModel features
+        super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
+
+    def _upload_parameters(self, xarr):
+        y = super()._upload_parameters(xarr)
+        # Every first upload in the model is done as a logarithm
+        for liny in y[::2]:
+            liny.is_log = True
+        return y
+
+    def build_circuit(self):
+        """Builds the reuploading ansatz for the circuit"""
+
+        circuit = models.Circuit(self._nqubits)
+
+        # then we add parametric gates
+        for i in range(self._nlayers):
+            for q in range(self._nqubits):
+                # q=0 and q=1 correspond to the two variables in the reuploading_indexes
+                circuit.add(gates.RY(q=q, theta=0))
+                self._reuploading_indexes[q].append(len(circuit.get_parameters()) - 1)
+                circuit.add(gates.RY(q=q, theta=0))
+                if i != (self._nlayers - 1):
+                    circuit.add(gates.RZ(q=q, theta=0))
+                    self._reuploading_indexes[q].append(len(circuit.get_parameters()) - 1)
+                    circuit.add(gates.RZ(q=q, theta=0))
+        # measurement gates
+        circuit.add((gates.M(*range(self._nqubits))))
+
+        self._circuit = circuit
+        # Get the initial parameters
+        self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+    def execute_with_x(self, xarr):
+        ret = super().execute_with_x(xarr)
+        return xarr[0] * ret
+
+    def forward_pass(self, xarr):
+        circ = super().execute_with_x(xarr)
+        der = super().forward_pass(xarr)
+        return xarr[0] * der + circ
+
 available_ansatz = {
     "base": BaseVariationalObservable,
     "reuploading": ReuploadingAnsatz,
     "deepup": DeepReuploading,
     "verticup": VerticalUploading,
     "qpdf": qPDFAnsatz,
+    "qpdf2q": qPDF_2q,
 }
 
 
