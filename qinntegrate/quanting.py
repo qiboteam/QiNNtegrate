@@ -1,6 +1,7 @@
 """Qibo interface of the integrator"""
 from copy import deepcopy
 import dataclasses
+from functools import cached_property
 from multiprocessing import Manager, Pool
 import os
 import time
@@ -100,6 +101,7 @@ class BaseVariationalObservable:
         self._variational_params = []
         self._initial_state = initial_state
         self.nderivatives = ndim  # By default, derive all dimensions
+        self.pid = os.getpid()  # Useful information when multiprocessing
 
         # Set the reuploading indexes
         self._reuploading_indexes = [[] for _ in range(ndim)]
@@ -115,20 +117,26 @@ class BaseVariationalObservable:
         self._nparams = len(self._circuit.get_parameters()) + 1
         self._variational_params = np.random.randn(self._nparams - 1)
         self._scaling = 1.0
-        self.pid = None
 
         # Visualizing the model
         if verbose:
             self.print_model()
 
-    @property
+    # Definition of some properties that can only be known upon first usage
+    @cached_property
     def _eigenfactor(self):
         return GEN_EIGENVAL**self.nderivatives
 
+    @cached_property
+    def _backend_exe(self):
+        return self._observable.backend.execute_circuit
+
+    @cached_property
+    def nparams(self):
+        return self._nparams
+
     def __repr__(self):
-        if self.pid is None:
-            return f"{self.__class__.__name__}"
-        return f"{self.__class__.__name__} running in process id: {self.pid}"
+        return f"{self.__class__.__name__} (dims={self._ndim}, nqubits={self._nqubits}, nlayers={self._nlayers}) running in process id: {self.pid}"
 
     def build_circuit(self):
         """Build step of the circuit"""
@@ -157,8 +165,14 @@ class BaseVariationalObservable:
 
     def print_model(self):
         """Print a model of the circuit"""
-        print(f"\nCircuit drawing:\n{self._circuit.draw()}\n")
-        print(f"Circuit summary:\n{self._circuit.summary()}\n")
+        print(
+            f"""{self}
+Circuit drawing:
+    {self._circuit.draw()}
+Circuit summary:
+    {self._circuit.summary()}
+"""
+        )
 
     def build_observable(self):
         """Build step of the observable"""
@@ -187,22 +201,18 @@ class BaseVariationalObservable:
         """Obtain the value of the observable for the given set of uploaded parameters
         by evaluating the circuit in those and computing the expectation value of the observable
         """
-        bexec = self._observable.backend.execute_circuit  # is this needed?
         # Update the parameters for this run
         circ_parameters = deepcopy(self._variational_params)
         for parameter in uploaded_parameters:
             circ_parameters[parameter.index] = parameter.y
+        # Set the parameters in the circuit
         self._circuit.set_parameters(circ_parameters)
-        state = bexec(circuit=self._circuit, initial_state=self._initial_state).state()
+        state = self._backend_exe(circuit=self._circuit, initial_state=self._initial_state).state()
         return self._observable.expectation(state) * self._scaling
 
     @property
     def parameters(self):
         return np.concatenate([[self._scaling], self._variational_params])
-
-    @property
-    def nparams(self):
-        return self._nparams
 
     def set_parameters(self, new_parameters):
         """Save the new set of parameters for the circuit
@@ -501,7 +511,7 @@ class ObservablePool:
         return np.array(self._pool.map(worker_forward_pass, all_xarr))
 
     # The rest are passed silently to the original ansatz
-    @property
+    @cached_property
     def nderivatives(self):
         return self._ansatz.nderivatives
 
