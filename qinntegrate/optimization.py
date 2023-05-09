@@ -2,8 +2,10 @@
     Optimization routines
 """
 from abc import abstractmethod
+import os
 import random
 import time
+
 import numpy as np
 from qibo.optimizers import optimize
 from scipy.optimize import basinhopping
@@ -30,6 +32,8 @@ class Optimizer:
         self._predictor = predictor
         self._xarr = xarr
         self._options = {}
+        # Save the pid, it might be useful
+        self.pid = os.getpid()
 
         # Ensure that the batch is not bigger than the number of points we have
         ntotal = xarr.shape[0]

@@ -10,6 +10,7 @@ r"""
 """
 from abc import abstractmethod
 from pathlib import Path
+
 import numpy as np
 from scipy.integrate import nquad
 from scipy.interpolate import interp1d
@@ -203,14 +204,14 @@ class UquarkPDF2d(TargetFunction):
     _min_x = 1e-4
     _min_q = 6.65**2
     _max_x = 0.7
-    _max_q = 6.65**2
+    _max_q = 16.65**2
 
     def build(self):
         if self.ndim < 2:
             raise ValueError("This target, uquark2d, needs 2 dimensions: x,q")
 
         nx = 70
-        nq = 10
+        nq = 20
         x = np.concatenate(
             [
                 np.logspace(np.log10(self._min_x), -1, nx // 2),

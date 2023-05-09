@@ -1,11 +1,12 @@
 """Qibo interface of the integrator"""
+from copy import deepcopy
+import dataclasses
+from multiprocessing import Manager, Pool
 import os
 import time
-import dataclasses
-from multiprocessing import Pool, Manager
-from copy import deepcopy
+
 import numpy as np
-from qibo import models, gates, hamiltonians, set_backend
+from qibo import gates, hamiltonians, models, set_backend
 
 set_backend("numpy")
 
@@ -441,13 +442,11 @@ available_ansatz = {
     "qpdf": qPDFAnsatz,
 }
 
+
 #### Pooling management
-
-
 def initialize_pool(observable_class, nqubits, nlayers, ndim):
     global my_ansatz
     my_ansatz = observable_class(nqubits=nqubits, nlayers=nlayers, ndim=ndim, verbose=False)
-    my_ansatz.pid = os.getpid()
 
 
 def worker_set_parameters(parameters, running_pool):
@@ -475,8 +474,8 @@ class ObservablePool:
         self._ansatz = pool.map(worker_get_ansatz, [None])[0]
         self._ansatz.print_model()
         self._ret = []
-        m = Manager()
-        self._shr = m.list()
+        self._manager = Manager()
+        self._shr = self._manager.list()
 
     # Pooled calls
     def set_parameters(self, parameters):
@@ -515,6 +514,12 @@ class ObservablePool:
 
     def execute_with_x(self, xarr):
         return self._ansatz.execute_with_x(xarr)
+
+    def __del__(self):
+        """Liberate processes and memory"""
+        del self._shr
+        self._manager.shutdown()
+        self._pool.terminate()
 
 
 def generate_ansatz_pool(observable_class, nqubits=1, nlayers=1, ndim=1, nprocesses=1):
