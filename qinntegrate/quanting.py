@@ -459,7 +459,9 @@ class qPDF_2q(qPDFAnsatz):
             for q in range(self._nqubits):
                 # q=0 and q=1 correspond to the two variables in the reuploading_indexes
                 circuit.add(gates.RY(q=q, theta=0))
-                self._reuploading_indexes[q].append(len(circuit.get_parameters()) - 1)
+                idx = len(circuit.get_parameters()) - 1
+                self._reuploading_indexes[q].append(idx)
+                self._logarithm_variables.append(idx)
                 circuit.add(gates.RY(q=q, theta=0))
                 if i != (self._nlayers - 1):
                     circuit.add(gates.RZ(q=q, theta=0))
