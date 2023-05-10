@@ -380,8 +380,6 @@ class qPDFAnsatz(BaseVariationalObservable):
 
     def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model we are going to use a 1 qubit circuit."""
-        if nqubits != 1:
-            raise ValueError("The qPDF ansatz allows only 1 qbit")
         if ndim > 2:
             raise ValueError("Only 2 dimensions can be fitted with qPDF")
         self._logarithm_variables = []
@@ -402,9 +400,6 @@ class qPDFAnsatz(BaseVariationalObservable):
 
         # then we add parametric gates
         for i in range(self._nlayers):
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # THIS ROTATION MUST BE FILLED WITH: log(x)
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             circuit.add(gates.RY(q=0, theta=0))
             idx = len(circuit.get_parameters()) - 1
             self._reuploading_indexes[0].append(idx)
@@ -420,9 +415,6 @@ class qPDFAnsatz(BaseVariationalObservable):
                 circuit.add(gates.RY(q=0, theta=0))
 
             if i != (self._nlayers - 1):
-                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                # THIS ROTATION MUST BE FILLED WITH: x
-                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 circuit.add(gates.RZ(q=0, theta=0))
                 self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
                 circuit.add(gates.RZ(q=0, theta=0))
@@ -444,7 +436,7 @@ class qPDFAnsatz(BaseVariationalObservable):
         return xarr[0] * der + circ
 
 
-class qPDF_2q(BaseVariationalObservable):
+class qPDF_2q(qPDFAnsatz):
     """Alternative version for the qPDF problem."""
 
     def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
@@ -456,12 +448,6 @@ class qPDF_2q(BaseVariationalObservable):
         # inheriting the BaseModel features
         super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
 
-    def _upload_parameters(self, xarr):
-        y = super()._upload_parameters(xarr)
-        # Every first upload in the model is done as a logarithm
-        for liny in y[::2]:
-            liny.is_log = True
-        return y
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
@@ -486,14 +472,6 @@ class qPDF_2q(BaseVariationalObservable):
         # Get the initial parameters
         self._variational_params = np.array(circuit.get_parameters()).flatten()
 
-    def execute_with_x(self, xarr):
-        ret = super().execute_with_x(xarr)
-        return xarr[0] * ret
-
-    def forward_pass(self, xarr):
-        circ = super().execute_with_x(xarr)
-        der = super().forward_pass(xarr)
-        return xarr[0] * der + circ
 
 available_ansatz = {
     "base": BaseVariationalObservable,
