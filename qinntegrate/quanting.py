@@ -1,8 +1,13 @@
 """Qibo interface of the integrator"""
-import dataclasses
 from copy import deepcopy
+import dataclasses
+from functools import cached_property
+from multiprocessing import Manager, Pool
+import os
+import time
+
 import numpy as np
-from qibo import models, gates, hamiltonians, set_backend
+from qibo import gates, hamiltonians, models, set_backend
 
 set_backend("numpy")
 
@@ -87,7 +92,7 @@ class BaseVariationalObservable:
     In this case the inputs of the function are injected in the `ndim` first parameters.
     """
 
-    def __init__(self, nqubits=3, nlayers=3, ndim=1, initial_state=None):
+    def __init__(self, nqubits=3, nlayers=3, ndim=1, initial_state=None, verbose=True):
         self._ndim = ndim
         self._nqubits = nqubits
         self._nlayers = nlayers
@@ -96,6 +101,7 @@ class BaseVariationalObservable:
         self._variational_params = []
         self._initial_state = initial_state
         self.nderivatives = ndim  # By default, derive all dimensions
+        self.pid = os.getpid()  # Useful information when multiprocessing
 
         # Set the reuploading indexes
         self._reuploading_indexes = [[] for _ in range(ndim)]
@@ -113,14 +119,24 @@ class BaseVariationalObservable:
         self._scaling = 1.0
 
         # Visualizing the model
-        self.print_model()
+        if verbose:
+            self.print_model()
 
-    @property
+    # Definition of some properties that can only be known upon first usage
+    @cached_property
     def _eigenfactor(self):
         return GEN_EIGENVAL**self.nderivatives
 
+    @cached_property
+    def _backend_exe(self):
+        return self._observable.backend.execute_circuit
+
+    @cached_property
+    def nparams(self):
+        return self._nparams
+
     def __repr__(self):
-        return self.__class__.__name__
+        return f"{self.__class__.__name__} (dims={self._ndim}, nqubits={self._nqubits}, nlayers={self._nlayers}) running in process id: {self.pid}"
 
     def build_circuit(self):
         """Build step of the circuit"""
@@ -149,8 +165,14 @@ class BaseVariationalObservable:
 
     def print_model(self):
         """Print a model of the circuit"""
-        print(f"\nCircuit drawing:\n{self._circuit.draw()}\n")
-        print(f"Circuit summary:\n{self._circuit.summary()}\n")
+        print(
+            f"""{self}
+Circuit drawing:
+    {self._circuit.draw()}
+Circuit summary:
+    {self._circuit.summary()}
+"""
+        )
 
     def build_observable(self):
         """Build step of the observable"""
@@ -179,32 +201,24 @@ class BaseVariationalObservable:
         """Obtain the value of the observable for the given set of uploaded parameters
         by evaluating the circuit in those and computing the expectation value of the observable
         """
-        bexec = self._observable.backend.execute_circuit  # is this needed?
         # Update the parameters for this run
         circ_parameters = deepcopy(self._variational_params)
         for parameter in uploaded_parameters:
             circ_parameters[parameter.index] = parameter.y
+        # Set the parameters in the circuit
         self._circuit.set_parameters(circ_parameters)
-        state = bexec(circuit=self._circuit, initial_state=self._initial_state).state()
+        state = self._backend_exe(circuit=self._circuit, initial_state=self._initial_state).state()
         return self._observable.expectation(state) * self._scaling
 
     @property
     def parameters(self):
         return np.concatenate([[self._scaling], self._variational_params])
 
-    @property
-    def nparams(self):
-        return self._nparams
-
-    def set_parameters(self, new_parameters_raw):
+    def set_parameters(self, new_parameters):
         """Save the new set of parameters for the circuit
         They only get burned into the circuit when the forward pass is called
+        The parameters must enter as a 1d array
         """
-        if new_parameters_raw.shape[0] != self.nparams:
-            raise ValueError("Trying to set more parameters than those allowed by the circuit")
-
-        # Ensure 1d
-        new_parameters = new_parameters_raw.flat
         self._scaling = new_parameters[0]
         self._variational_params = new_parameters[1:]
 
@@ -234,7 +248,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
     """Generates a variational quantum circuit in which we upload all the variables
     in each layer."""
 
-    def __init__(self, nqubits, nlayers, ndim=1, initial_state=None):
+    def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model the number of qubits is equal to the dimensionality
         of the problem."""
         if nqubits != ndim:
@@ -242,7 +256,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
                 "For ReuploadingAnsatz the number of qubits must be equal to the number of dimensions"
             )
         # inheriting the BaseModel features
-        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+        super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
@@ -437,3 +451,93 @@ available_ansatz = {
     "verticup": VerticalUploading,
     "qpdf": qPDFAnsatz,
 }
+
+
+#### Pooling management
+def initialize_pool(observable_class, nqubits, nlayers, ndim):
+    global my_ansatz
+    my_ansatz = observable_class(nqubits=nqubits, nlayers=nlayers, ndim=ndim, verbose=False)
+
+
+def worker_set_parameters(parameters, running_pool):
+    my_ansatz.set_parameters(parameters)
+
+    # Remove one element of running_pool and wait
+    _ = running_pool.pop()
+    while running_pool:
+        time.sleep(1e-6)
+    return my_ansatz.pid
+
+
+def worker_forward_pass(xarr):
+    return my_ansatz.forward_pass(xarr)
+
+
+def worker_get_ansatz(_):
+    return my_ansatz
+
+
+class ObservablePool:
+    def __init__(self, pool):
+        self._pool = pool
+        self._nprocesses = pool._processes
+        self._ansatz = pool.map(worker_get_ansatz, [None])[0]
+        self._ansatz.print_model()
+        self._ret = []
+        self._manager = Manager()
+        self._shr = self._manager.list()
+
+    # Pooled calls
+    def set_parameters(self, parameters):
+        parameters = parameters.reshape(-1)
+
+        # Make sure that the main process ansatz has the right parameters
+        self._ansatz.set_parameters(parameters)
+
+        # Now prepare a list with locks
+        for _ in range(self._nprocesses):
+            self._shr.append(None)
+
+        # Send the parameter set as async calls
+        pids = [
+            self._pool.apply_async(worker_set_parameters, args=(parameters, self._shr))
+            for _ in range(self._nprocesses)
+        ]
+
+        # And wait until all threads are done before continuing
+        [i.get() for i in pids]
+
+    def vectorized_forward_pass(self, all_xarr):
+        return np.array(self._pool.map(worker_forward_pass, all_xarr))
+
+    # The rest are passed silently to the original ansatz
+    @cached_property
+    def nderivatives(self):
+        return self._ansatz.nderivatives
+
+    @property
+    def parameters(self):
+        return self._ansatz.parameters
+
+    def forward_pass(self, xarr):
+        return self._ansatz.forward_pass(xarr)
+
+    def execute_with_x(self, xarr):
+        return self._ansatz.execute_with_x(xarr)
+
+    def __del__(self):
+        """Liberate processes and memory"""
+        del self._shr
+        self._manager.shutdown()
+        self._pool.terminate()
+
+
+def generate_ansatz_pool(observable_class, nqubits=1, nlayers=1, ndim=1, nprocesses=1):
+    """Generate a pool of ansatz"""
+    pool = Pool(
+        processes=nprocesses,
+        initializer=initialize_pool,
+        initargs=(observable_class, nqubits, nlayers, ndim),
+    )
+
+    return ObservablePool(pool)

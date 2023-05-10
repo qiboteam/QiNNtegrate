@@ -1,18 +1,18 @@
 """
     Main script to launch the examples and benchmarks
 """
-import json
-import copy
-import tempfile
 from argparse import ArgumentParser, ArgumentTypeError
+import copy
+import json
 from pathlib import Path
+import tempfile
 
-import numpy as np
 from matplotlib import pyplot as plt
+import numpy as np
 
+from qinntegrate.optimization import available_optimizers, launch_optimization
+from qinntegrate.quanting import available_ansatz, generate_ansatz_pool
 from qinntegrate.target import available_targets
-from qinntegrate.optimization import launch_optimization, available_optimizers
-from qinntegrate.quanting import available_ansatz
 
 TARGETS = list(available_targets.keys())
 ANSATZS = list(available_ansatz.keys())
@@ -67,14 +67,18 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
             # in the other dimensions
 
             # Select a random point in the other dimensions
-            xran = np.random.rand(target.ndim) * (xmax - xmin) + xmin
+            xran_origin = np.random.rand(target.ndim) * (xmax - xmin) + xmin
 
             ytrue = []
-            ypred = []
+            all_xs = []
+
             for xx in xlin:
+                xran = copy.deepcopy(xran_origin)
                 xran[d] = xx
                 ytrue.append(target(xran))
-                ypred.append(predictor.forward_pass(xran))
+                all_xs.append(xran)
+
+            ypred = predictor.vectorized_forward_pass(all_xs)
 
             plt.plot(xlin, ytrue, label=f"Target n{i}", linewidth=2.5, alpha=0.6, ls="-")
             plt.plot(
@@ -149,6 +153,9 @@ if __name__ == "__main__":
     parser.add_argument("--xmax", help="Integration limit xf", nargs="+", type=float, default=[1.0])
     parser.add_argument("-o", "--output", help="Output folder", type=Path, default=None)
     parser.add_argument("-l", "--load", help="Load initial parameters from", type=Path)
+    parser.add_argument(
+        "-j", "--jobs", help="Number of processes to utilize (default 4)", type=int, default=4
+    )
 
     target_parser = parser.add_argument_group("Target function")
     target_parser.add_argument(
@@ -220,7 +227,9 @@ if __name__ == "__main__":
 
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
-    observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim)
+    observable = generate_ansatz_pool(
+        args.ansatz, nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, nprocesses=args.jobs
+    )
 
     xmin = args.xmin
     xmax = args.xmax

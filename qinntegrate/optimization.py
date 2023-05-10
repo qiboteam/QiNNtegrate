@@ -4,6 +4,7 @@
 from abc import abstractmethod
 import random
 import time
+
 import numpy as np
 from qibo.optimizers import optimize
 from scipy.optimize import basinhopping
@@ -65,7 +66,7 @@ class Optimizer:
         ynorm = self._ynorm[idx_subset]
 
         # Compute the prediction for the points in x
-        pred_y = np.array([self._predictor.forward_pass(xx) for xx in xarr])
+        pred_y = self._predictor.vectorized_forward_pass(xarr)
 
         return mse(pred_y, ytrue, norm=ynorm)
 
