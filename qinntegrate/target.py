@@ -195,6 +195,9 @@ class UquarkPDF(TargetFunction):
 class UquarkPDF2d(TargetFunction):
     """Implementation of the u-quark PDF from NNPDF4.0
     It requires two dimensions (x,) and (Q,) and pdfflow needs to be installed
+
+    The limits in Q are normalized between 0 and 1, but the PDF actually takes
+    an actual Q**2 in GeV^2
     """
 
     max_par = 0
@@ -218,16 +221,20 @@ class UquarkPDF2d(TargetFunction):
                 np.linspace(0.1, self._max_x, nx // 2),
             ]
         )
-        q = np.linspace(self._min_q, self._max_q, nq)
 
+        q = np.linspace(0, 1, nq)
         xx, qq = np.meshgrid(x, q)
         self._xgrid = np.column_stack([xx.ravel(), qq.ravel()])
 
         self._pdf = mkPDF("nnpdf40/0", dirname=Path(__file__).parent)
 
+    @property
+    def _delta_q(self):
+        return np.sqrt(self._max_q) - np.sqrt(self._min_q)
+
     def __call__(self, xarr):
         x = xarr[0]
-        q = xarr[1]
+        q = (xarr[1] * self._delta_q + np.sqrt(self._min_q)) ** 2
         return self._pdf.py_xfxQ2(2, [x], [q]).numpy()
 
     def __repr__(self):
@@ -245,11 +252,11 @@ class UquarkPDF2d(TargetFunction):
 
     @property
     def xmin(self):
-        return [self._min_x, self._min_q]
+        return [self._min_x, 0]
 
     @property
     def xmax(self):
-        return [self._max_x, self._max_q]
+        return [self._max_x, 1]
 
     @property
     def xgrid(self):

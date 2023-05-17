@@ -13,7 +13,7 @@ set_backend("numpy")
 
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
-DERIVATIVE = True
+DERIVATIVE = False
 
 
 def _recursive_shifts(arrays, index=1, s=SHIFT):
@@ -448,7 +448,6 @@ class qPDF_2q(qPDFAnsatz):
         # inheriting the BaseModel features
         super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
 
-
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
 
@@ -461,7 +460,8 @@ class qPDF_2q(qPDFAnsatz):
                 circuit.add(gates.RY(q=q, theta=0))
                 idx = len(circuit.get_parameters()) - 1
                 self._reuploading_indexes[q].append(idx)
-                self._logarithm_variables.append(idx)
+                if q == 0:
+                    self._logarithm_variables.append(idx)
                 circuit.add(gates.RY(q=q, theta=0))
                 if i != (self._nlayers - 1):
                     circuit.add(gates.RZ(q=q, theta=0))
