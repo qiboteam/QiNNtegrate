@@ -448,7 +448,6 @@ class qPDF_2q(qPDFAnsatz):
         # inheriting the BaseModel features
         super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
 
-
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
 
