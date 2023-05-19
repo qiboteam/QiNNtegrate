@@ -13,7 +13,7 @@ set_backend("numpy")
 
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
-DERIVATIVE = True
+DERIVATIVE = False
 
 
 def _recursive_shifts(arrays, index=1, s=SHIFT):
@@ -167,7 +167,7 @@ class BaseVariationalObservable:
         """Print a model of the circuit"""
         print(
             f"""{self}
-Circuit drawing:
+Circuit drawing:\n
     {self._circuit.draw()}
 Circuit summary:
     {self._circuit.summary()}
@@ -454,19 +454,36 @@ class qPDF_2q(qPDFAnsatz):
 
         circuit = models.Circuit(self._nqubits)
 
-        # then we add parametric gates
         for i in range(self._nlayers):
-            for q in range(self._nqubits):
-                # q=0 and q=1 correspond to the two variables in the reuploading_indexes
-                circuit.add(gates.RY(q=q, theta=0))
-                idx = len(circuit.get_parameters()) - 1
-                self._reuploading_indexes[q].append(idx)
-                self._logarithm_variables.append(idx)
-                circuit.add(gates.RY(q=q, theta=0))
-                if i != (self._nlayers - 1):
-                    circuit.add(gates.RZ(q=q, theta=0))
-                    self._reuploading_indexes[q].append(len(circuit.get_parameters()) - 1)
-                    circuit.add(gates.RZ(q=q, theta=0))
+
+            # log(x)
+            circuit.add(gates.RY(q=0, theta=0))
+            idx = len(circuit.get_parameters()) - 1
+            self._reuploading_indexes[0].append(idx)
+            self._logarithm_variables.append(idx)
+            # bias on log(x)
+            circuit.add(gates.RY(q=0, theta=0))
+
+            # q
+            circuit.add(gates.RY(q=1, theta=0))
+            idx = len(circuit.get_parameters()) - 1
+            self._reuploading_indexes[1].append(idx)
+            # bias on q
+            circuit.add(gates.RY(q=1, theta=0))
+
+            # second x upload (not for q)
+            if i != (self._nlayers - 1):
+                # x
+                circuit.add(gates.RZ(q=0, theta=0))
+                self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
+                circuit.add(gates.RZ(q=0, theta=0))
+
+            # Entangling the qubits
+            circuit.add(gates.CZ(0,1))
+        
+        # final RY for both the qubits
+        circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
+
         # measurement gates
         circuit.add((gates.M(*range(self._nqubits))))
 
