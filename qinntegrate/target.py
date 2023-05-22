@@ -207,13 +207,13 @@ class UquarkPDF2d(TargetFunction):
     _min_x = 1e-4
     _min_q = 6.65**2
     _max_x = 0.7
-    _max_q = 16.65**2
+    _max_q = 36.65**2
 
     def build(self):
         if self.ndim < 2:
             raise ValueError("This target, uquark2d, needs 2 dimensions: x,q")
 
-        nx = 70
+        nx = 60
         nq = 20
         x = np.concatenate(
             [

@@ -163,7 +163,7 @@ class BasinHopping(Optimizer):
     def optimize(self, initial_p):
         print(f"Initial parameters: {self._predictor.parameters}")
         res = basinhopping(
-            func=self.loss, x0=initial_p, niter=self._niter, disp=self._disp, niter_success=2
+            func=self.loss, x0=initial_p, niter=self._niter, disp=self._disp, niter_success=5
         )
         return None, res["x"]
 

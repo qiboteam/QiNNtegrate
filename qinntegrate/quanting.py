@@ -441,7 +441,7 @@ class qPDF_2q(qPDFAnsatz):
 
     def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model we are going to use a 2 qubit circuit."""
-        if nqubits != 2 or ndim != 2:
+        if nqubits > 2 or ndim > 2:
             raise ValueError(
                 "With this ansatz we tackle the 1d uquark qPDF and with a 2 qubits model."
             )
@@ -463,13 +463,6 @@ class qPDF_2q(qPDFAnsatz):
             # bias on log(x)
             circuit.add(gates.RY(q=0, theta=0))
 
-            # q
-            circuit.add(gates.RY(q=1, theta=0))
-            idx = len(circuit.get_parameters()) - 1
-            self._reuploading_indexes[1].append(idx)
-            # bias on q
-            circuit.add(gates.RY(q=1, theta=0))
-
             # second x upload (not for q)
             if i != (self._nlayers - 1):
                 # x
@@ -477,11 +470,19 @@ class qPDF_2q(qPDFAnsatz):
                 self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
                 circuit.add(gates.RZ(q=0, theta=0))
 
+            # q
+            circuit.add(gates.RY(q=0, theta=0))
+            idx = len(circuit.get_parameters()) - 1
+            self._reuploading_indexes[1].append(idx)
+            # bias on q
+            circuit.add(gates.RY(q=0, theta=0))
+            
+
             # Entangling the qubits
-            circuit.add(gates.CZ(0,1))
+            #circuit.add(gates.CZ(0,1))
         
         # final RY for both the qubits
-        circuit.add((gates.RY(q, theta=0) for q in range(self._nqubits)))
+        #circuit.add((gates.RZ(q, theta=0) for q in range(self._nqubits)))
 
         # measurement gates
         circuit.add((gates.M(*range(self._nqubits))))
