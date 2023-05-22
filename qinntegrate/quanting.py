@@ -436,14 +436,14 @@ class qPDFAnsatz(BaseVariationalObservable):
         return xarr[0] * der + circ
 
 
-class qPDF_2q(qPDFAnsatz):
+class qPDF_v2(qPDFAnsatz):
     """Alternative version for the qPDF problem."""
 
     def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model we are going to use a 2 qubit circuit."""
-        if nqubits > 2 or ndim > 2:
+        if nqubits > 1 or ndim > 2:
             raise ValueError(
-                "With this ansatz we tackle the 1d uquark qPDF and with a 2 qubits model."
+                "With this ansatz we tackle the 1d uquark qPDF and with a 1 qubits model."
             )
         # inheriting the BaseModel features
         super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
@@ -498,7 +498,7 @@ available_ansatz = {
     "deepup": DeepReuploading,
     "verticup": VerticalUploading,
     "qpdf": qPDFAnsatz,
-    "qpdf2q": qPDF_2q,
+    "qpdf2q": qPDF_v2,
 }
 
 
