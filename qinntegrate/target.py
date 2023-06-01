@@ -65,6 +65,10 @@ class TargetFunction:
     def __repr__(self):
         return self.__class__.__name__
 
+    def dimension_name(self, d):
+        """Returns the name of dimensions d"""
+        return f"x{d+1}"
+
     # When override == True, the target function should also implement the following properties
     @property
     def xmin(self):
@@ -204,23 +208,24 @@ class UquarkPDF2d(TargetFunction):
     max_ndim = 2
     override = True
 
-    _min_x = 1e-4
-    _min_q = 6.65**2
-    _max_x = 0.7
-    _max_q = 36.65**2
+    _min_x = 0.3  # 1e-4
+    _min_q = 25.0
+    _max_x = 0.6
+    _max_q = 125.0
 
     def build(self):
         if self.ndim < 2:
             raise ValueError("This target, uquark2d, needs 2 dimensions: x,q")
 
-        nx = 60
-        nq = 20
+        nx = 50
+        nq = 100
         x = np.concatenate(
             [
                 np.logspace(np.log10(self._min_x), -1, nx // 2),
                 np.linspace(0.1, self._max_x, nx // 2),
             ]
         )
+        x = (np.linspace(0.1, self._max_x, nx),)
 
         q = np.linspace(0, 1, nq)
         xx, qq = np.meshgrid(x, q)
@@ -228,14 +233,10 @@ class UquarkPDF2d(TargetFunction):
 
         self._pdf = mkPDF("nnpdf40/0", dirname=Path(__file__).parent)
 
-    @property
-    def _delta_q(self):
-        return np.sqrt(self._max_q) - np.sqrt(self._min_q)
-
     def __call__(self, xarr):
         x = xarr[0]
-        q = (xarr[1] * self._delta_q + np.sqrt(self._min_q)) ** 2
-        return self._pdf.py_xfxQ2(2, [x], [q]).numpy()
+        q = self._min_q + xarr[1] * (self._max_q - self._min_q)
+        return self._pdf.py_xfxQ2(2, [x], [q**2]).numpy()
 
     def __repr__(self):
         return f"xu(x)"
@@ -243,12 +244,18 @@ class UquarkPDF2d(TargetFunction):
     def integral(self, xmin, xmax):
         npoints = 1000
         xgrid = np.linspace(xmin[0], xmax[0], npoints)
-        q2 = xmin[1]
-        print(f"Computing the integral for {q2=}")
-        q2grid = [q2] * npoints
+        q = 1.0*(self._max_q - self._min_q) + self._min_q
+        print(f"Computing the integral for {q=}")
+        q2grid = np.ones_like(xgrid) * q**2
         vals = self._pdf.py_xfxQ2(2, xgrid, q2grid)
         xdelta = xmax[0] - xmin[0]
         return (np.average(vals) * xdelta, 0.0)
+
+    def dimension_name(self, d):
+        if d == 0:
+            return "x"
+        if d == 1:
+            return "q"
 
     @property
     def xmin(self):
