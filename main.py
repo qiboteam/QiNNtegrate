@@ -59,8 +59,14 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
     xmax = np.array(xmax)
 
     for d in range(target.ndim):
+        xaxis_name = target.dimension_name(d)
+        xaxis_scale = target.dimension_scale(d)
         # Create a linear space in the dimension we are plotting
         xlin = np.linspace(xmin[d], xmax[d], npoints)
+
+        if xaxis_scale == "log":
+            # change to log
+            xlin = np.logspace(np.log10(xmin[d]), np.log10(xmax[d]), npoints)
 
         for i in range(target.ndim * 2):
             # For every extra dimension do an extra plot so that we have more random points
@@ -102,7 +108,7 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
         plt.legend()
 
         plt.grid(True)
-        xaxis_name = target.dimension_name(d)
+        plt.xscale(xaxis_scale)
         plt.title(f"Integrand fit, dependence on {xaxis_name}")
         plt.xlabel(rf"${xaxis_name}$")
         plt.ylabel(r"$f(\vec{x})$")
