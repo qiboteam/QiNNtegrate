@@ -4,6 +4,7 @@
 from abc import abstractmethod
 import random
 import time
+
 import numpy as np
 from qibo.optimizers import optimize
 from scipy.optimize import basinhopping
@@ -25,7 +26,7 @@ class Optimizer:
 
     _method = None
 
-    def __init__(self, xarr, target, predictor, normalize=True, nbatch=200, randomize_batch=True):
+    def __init__(self, xarr, target, predictor, normalize=True, nbatch=10000, randomize_batch=True):
         self._target = target
         self._predictor = predictor
         self._xarr = xarr
@@ -65,7 +66,7 @@ class Optimizer:
         ynorm = self._ynorm[idx_subset]
 
         # Compute the prediction for the points in x
-        pred_y = np.array([self._predictor.forward_pass(xx) for xx in xarr])
+        pred_y = self._predictor.vectorized_forward_pass(xarr)
 
         return mse(pred_y, ytrue, norm=ynorm)
 
@@ -108,12 +109,11 @@ class BFGS(Optimizer):
     _method = "BFGS"
 
     def __init__(self, *args, randomize_batch=False, **kwargs):
-        # The BFGS needs to set the randomize_batch option to False
-        # a new set of points will be drawn in the callback option
         super().__init__(*args, randomize_batch=False, **kwargs)
 
-    #     def _callback(self, params):
-    #         self._current_subset = np.random.choice(self._arange, size=self._nbatch, replace=False)
+    def _callback(self, params):
+        if self._random_batch:
+            self._current_subset = np.random.choice(self._arange, size=self._nbatch, replace=False)
 
     def set_options(self, **kwargs):
         self._options = {
@@ -132,6 +132,8 @@ class LBFGS(BFGS):
         self._options = {
             "disp": True,
             "maxiter": kwargs.get("max_iterations", 100),
+            "gtol": 1e-12,
+            "ftol": 1e-18,
         }
         print(f"Initial parameters: {self._predictor.parameters}")
 
@@ -151,6 +153,9 @@ class SGD(Optimizer):
 class BasinHopping(Optimizer):
     _method = "basinhopping"
 
+    def __init__(self, *args, randomize_batch=False, **kwargs):
+        super().__init__(*args, randomize_batch=False, **kwargs)
+
     def set_options(self, **kwargs):
         self._niter = kwargs.get("max_iterations", 5)
         self._disp = kwargs.get("disp", True)
@@ -158,7 +163,7 @@ class BasinHopping(Optimizer):
     def optimize(self, initial_p):
         print(f"Initial parameters: {self._predictor.parameters}")
         res = basinhopping(
-            func=self.loss, x0=initial_p, niter=self._niter, disp=self._disp, niter_success=2
+            func=self.loss, x0=initial_p, niter=self._niter, disp=self._disp, niter_success=5
         )
         return None, res["x"]
 
@@ -222,7 +227,7 @@ def launch_optimization(
     target,
     optimizer_class,
     max_iterations=100,
-    max_evals=int(1e5),
+    max_evals=int(5e5),
     tol_error=1e-5,
     normalize=True,
 ):

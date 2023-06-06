@@ -1,8 +1,13 @@
 """Qibo interface of the integrator"""
-import dataclasses
 from copy import deepcopy
+import dataclasses
+from functools import cached_property
+from multiprocessing import Manager, Pool
+import os
+import time
+
 import numpy as np
-from qibo import models, gates, hamiltonians, set_backend
+from qibo import gates, hamiltonians, models, set_backend
 
 set_backend("numpy")
 
@@ -87,7 +92,7 @@ class BaseVariationalObservable:
     In this case the inputs of the function are injected in the `ndim` first parameters.
     """
 
-    def __init__(self, nqubits=3, nlayers=3, ndim=1, initial_state=None):
+    def __init__(self, nqubits=3, nlayers=3, ndim=1, initial_state=None, verbose=True):
         self._ndim = ndim
         self._nqubits = nqubits
         self._nlayers = nlayers
@@ -95,7 +100,8 @@ class BaseVariationalObservable:
         self._observable = None
         self._variational_params = []
         self._initial_state = initial_state
-        self._eigenfactor = GEN_EIGENVAL**ndim
+        self.nderivatives = ndim  # By default, derive all dimensions
+        self.pid = os.getpid()  # Useful information when multiprocessing
 
         # Set the reuploading indexes
         self._reuploading_indexes = [[] for _ in range(ndim)]
@@ -113,10 +119,24 @@ class BaseVariationalObservable:
         self._scaling = 1.0
 
         # Visualizing the model
-        self.print_model()
+        if verbose:
+            self.print_model()
+
+    # Definition of some properties that can only be known upon first usage
+    @cached_property
+    def _eigenfactor(self):
+        return GEN_EIGENVAL**self.nderivatives
+
+    @cached_property
+    def _backend_exe(self):
+        return self._observable.backend.execute_circuit
+
+    @cached_property
+    def nparams(self):
+        return self._nparams
 
     def __repr__(self):
-        return self.__class__.__name__
+        return f"{self.__class__.__name__} (dims={self._ndim}, nqubits={self._nqubits}, nlayers={self._nlayers}) running in process id: {self.pid}"
 
     def build_circuit(self):
         """Build step of the circuit"""
@@ -145,8 +165,14 @@ class BaseVariationalObservable:
 
     def print_model(self):
         """Print a model of the circuit"""
-        print(f"\nCircuit drawing:\n{self._circuit.draw()}\n")
-        print(f"Circuit summary:\n{self._circuit.summary()}\n")
+        print(
+            f"""{self}
+Circuit drawing:\n
+    {self._circuit.draw()}
+Circuit summary:
+    {self._circuit.summary()}
+"""
+        )
 
     def build_observable(self):
         """Build step of the observable"""
@@ -175,32 +201,24 @@ class BaseVariationalObservable:
         """Obtain the value of the observable for the given set of uploaded parameters
         by evaluating the circuit in those and computing the expectation value of the observable
         """
-        bexec = self._observable.backend.execute_circuit  # is this needed?
         # Update the parameters for this run
         circ_parameters = deepcopy(self._variational_params)
         for parameter in uploaded_parameters:
             circ_parameters[parameter.index] = parameter.y
+        # Set the parameters in the circuit
         self._circuit.set_parameters(circ_parameters)
-        state = bexec(circuit=self._circuit, initial_state=self._initial_state).state()
+        state = self._backend_exe(circuit=self._circuit, initial_state=self._initial_state).state()
         return self._observable.expectation(state) * self._scaling
 
     @property
     def parameters(self):
         return np.concatenate([[self._scaling], self._variational_params])
 
-    @property
-    def nparams(self):
-        return self._nparams
-
-    def set_parameters(self, new_parameters_raw):
+    def set_parameters(self, new_parameters):
         """Save the new set of parameters for the circuit
         They only get burned into the circuit when the forward pass is called
+        The parameters must enter as a 1d array
         """
-        if new_parameters_raw.shape[0] != self.nparams:
-            raise ValueError("Trying to set more parameters than those allowed by the circuit")
-
-        # Ensure 1d
-        new_parameters = new_parameters_raw.flat
         self._scaling = new_parameters[0]
         self._variational_params = new_parameters[1:]
 
@@ -211,7 +229,7 @@ class BaseVariationalObservable:
         y = self._upload_parameters(xarr)
 
         if DERIVATIVE:
-            shifts = _recursive_shifts([y], index=self._ndim)
+            shifts = _recursive_shifts([y], index=self.nderivatives)
         else:
             shifts = [y]
 
@@ -230,7 +248,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
     """Generates a variational quantum circuit in which we upload all the variables
     in each layer."""
 
-    def __init__(self, nqubits, nlayers, ndim=1, initial_state=None):
+    def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model the number of qubits is equal to the dimensionality
         of the problem."""
         if nqubits != ndim:
@@ -238,7 +256,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
                 "For ReuploadingAnsatz the number of qubits must be equal to the number of dimensions"
             )
         # inheriting the BaseModel features
-        super().__init__(nqubits, nlayers, ndim=ndim, initial_state=initial_state)
+        super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
@@ -356,23 +374,24 @@ class qPDFAnsatz(BaseVariationalObservable):
     Generates a circuit which follows the qPDF ansatz.
     The following implementation works only for 1 flavour; uquark in this case.
     Ref: https://arxiv.org/abs/2011.13934.
+
+    It accepts two input variables (two dimensions) but only the first one will have the logarithm upload
     """
 
     def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model we are going to use a 1 qubit circuit."""
-        if nqubits != 1 or ndim != 1:
-            raise ValueError(
-                "With this ansatz we tackle the 1d uquark qPDF and only 1 qubit is allowed."
-            )
-        # inheriting the BaseModel features
+        if ndim > 2:
+            raise ValueError("Only 2 dimensions can be fitted with qPDF")
+        self._logarithm_variables = []
         super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
+        self.nderivatives = 1  # The derivative is performed only on the first dimension
 
     def _upload_parameters(self, xarr):
-        y = super()._upload_parameters(xarr)
-        # Every first upload in the model is done as a logarithm
-        for liny in y[::2]:
-            liny.is_log = True
-        return y
+        yarr = super()._upload_parameters(xarr)
+        for y in yarr:
+            if y.index in self._logarithm_variables:
+                y.is_log = True
+        return yarr
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
@@ -381,19 +400,25 @@ class qPDFAnsatz(BaseVariationalObservable):
 
         # then we add parametric gates
         for i in range(self._nlayers):
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # THIS ROTATION MUST BE FILLED WITH: log(x)
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             circuit.add(gates.RY(q=0, theta=0))
-            self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
+            idx = len(circuit.get_parameters()) - 1
+            self._reuploading_indexes[0].append(idx)
+            self._logarithm_variables.append(idx)
             circuit.add(gates.RY(q=0, theta=0))
+
+            if self._ndim > 1:
+                # Add a gate for the second dimension
+                circuit.add(gates.RY(q=0, theta=0))
+                idx = len(circuit.get_parameters()) - 1
+                self._reuploading_indexes[1].append(idx)
+                self._logarithm_variables.append(idx)
+                circuit.add(gates.RY(q=0, theta=0))
+
             if i != (self._nlayers - 1):
-                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                # THIS ROTATION MUST BE FILLED WITH: x
-                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 circuit.add(gates.RZ(q=0, theta=0))
                 self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
                 circuit.add(gates.RZ(q=0, theta=0))
+
         # measurement gates
         circuit.add((gates.M(0)))
 
@@ -411,10 +436,150 @@ class qPDFAnsatz(BaseVariationalObservable):
         return xarr[0] * der + circ
 
 
+class qPDF_v2(qPDFAnsatz):
+    """Alternative version for the qPDF problem."""
+
+    def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
+        """In this specific model we are going to use a 2 qubit circuit."""
+        if nqubits > 1 or ndim > 2:
+            raise ValueError(
+                "With this ansatz we tackle the 1d uquark qPDF and with a 1 qubits model."
+            )
+        # inheriting the BaseModel features
+        super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
+
+    def build_circuit(self):
+        """Builds the reuploading ansatz for the circuit"""
+
+        circuit = models.Circuit(self._nqubits)
+
+        for i in range(self._nlayers):
+            if i < (self._nlayers - 1):
+                # Add the q-rotation at the beginning of the layers
+                # and not for the last one
+                # q
+                circuit.add(gates.RZ(q=0, theta=0))
+                idx = len(circuit.get_parameters()) - 1
+                self._reuploading_indexes[1].append(idx)
+                # bias on q
+                circuit.add(gates.RZ(q=0, theta=0))
+
+            # first x upload: log(x)
+            circuit.add(gates.RY(q=0, theta=0))
+            idx = len(circuit.get_parameters()) - 1
+            self._reuploading_indexes[0].append(idx)
+            self._logarithm_variables.append(idx)
+            # bias on log(x)
+            circuit.add(gates.RY(q=0, theta=0))
+
+            # second x upload: (x)
+            circuit.add(gates.RZ(q=0, theta=0))
+            self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
+            circuit.add(gates.RZ(q=0, theta=0))
+
+        # measurement gates
+        circuit.add((gates.M(*range(self._nqubits))))
+
+        self._circuit = circuit
+        # Get the initial parameters
+        self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+
 available_ansatz = {
     "base": BaseVariationalObservable,
     "reuploading": ReuploadingAnsatz,
     "deepup": DeepReuploading,
     "verticup": VerticalUploading,
     "qpdf": qPDFAnsatz,
+    "qpdf2q": qPDF_v2,
 }
+
+
+#### Pooling management
+def initialize_pool(observable_class, nqubits, nlayers, ndim):
+    global my_ansatz
+    my_ansatz = observable_class(nqubits=nqubits, nlayers=nlayers, ndim=ndim, verbose=False)
+
+
+def worker_set_parameters(parameters, running_pool):
+    my_ansatz.set_parameters(parameters)
+
+    # Remove one element of running_pool and wait
+    _ = running_pool.pop()
+    while running_pool:
+        time.sleep(1e-6)
+    return my_ansatz.pid
+
+
+def worker_forward_pass(xarr):
+    return my_ansatz.forward_pass(xarr)
+
+
+def worker_get_ansatz(_):
+    return my_ansatz
+
+
+class ObservablePool:
+    def __init__(self, pool):
+        self._pool = pool
+        self._nprocesses = pool._processes
+        self._ansatz = pool.map(worker_get_ansatz, [None])[0]
+        self._ansatz.print_model()
+        self._ret = []
+        self._manager = Manager()
+        self._shr = self._manager.list()
+
+    # Pooled calls
+    def set_parameters(self, parameters):
+        parameters = parameters.reshape(-1)
+
+        # Make sure that the main process ansatz has the right parameters
+        self._ansatz.set_parameters(parameters)
+
+        # Now prepare a list with locks
+        for _ in range(self._nprocesses):
+            self._shr.append(None)
+
+        # Send the parameter set as async calls
+        pids = [
+            self._pool.apply_async(worker_set_parameters, args=(parameters, self._shr))
+            for _ in range(self._nprocesses)
+        ]
+
+        # And wait until all threads are done before continuing
+        [i.get() for i in pids]
+
+    def vectorized_forward_pass(self, all_xarr):
+        return np.array(self._pool.map(worker_forward_pass, all_xarr))
+
+    # The rest are passed silently to the original ansatz
+    @cached_property
+    def nderivatives(self):
+        return self._ansatz.nderivatives
+
+    @property
+    def parameters(self):
+        return self._ansatz.parameters
+
+    def forward_pass(self, xarr):
+        return self._ansatz.forward_pass(xarr)
+
+    def execute_with_x(self, xarr):
+        return self._ansatz.execute_with_x(xarr)
+
+    def __del__(self):
+        """Liberate processes and memory"""
+        del self._shr
+        self._manager.shutdown()
+        self._pool.terminate()
+
+
+def generate_ansatz_pool(observable_class, nqubits=1, nlayers=1, ndim=1, nprocesses=1):
+    """Generate a pool of ansatz"""
+    pool = Pool(
+        processes=nprocesses,
+        initializer=initialize_pool,
+        initargs=(observable_class, nqubits, nlayers, ndim),
+    )
+
+    return ObservablePool(pool)

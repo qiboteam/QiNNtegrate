@@ -2,3 +2,4 @@ numpy
 scipy
 qibo
 qibojit
+pdfflow

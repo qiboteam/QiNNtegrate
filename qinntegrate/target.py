@@ -10,9 +10,17 @@ r"""
 """
 from abc import abstractmethod
 from pathlib import Path
+
 import numpy as np
 from scipy.integrate import nquad
 from scipy.interpolate import interp1d
+
+try:
+    from pdfflow import mkPDF
+except ModuleNotFoundError:
+
+    def mkPDF(*args, **kwargs):
+        raise ModuleNotFoundError("Please install `pdfflow`, `pip install pdfflow`")
 
 
 class TargetFunction:
@@ -57,6 +65,14 @@ class TargetFunction:
     def __repr__(self):
         return self.__class__.__name__
 
+    def dimension_name(self, d):
+        """Returns the name of dimensions d"""
+        return f"x{d+1}"
+
+    def dimension_scale(self, d):
+        """Returns the scale of the dimension for plots (eg. log or linear)"""
+        return "linear"
+
     # When override == True, the target function should also implement the following properties
     @property
     def xmin(self):
@@ -76,16 +92,17 @@ class Sin1d(TargetFunction):
     y = sin(a1*x + a2)
     """
 
-    max_par = 2
+    max_par = 3
     max_ndim = 1
 
     def build(self):
-        self._a1 = self._parameters[0] if len(self._parameters) > 0 else 1.0
-        self._a2 = self._parameters[1] if len(self._parameters) > 1 else 0.0
+        self._a0 = self._parameters[0] if len(self._parameters) > 0 else 1.0
+        self._a1 = self._parameters[1] if len(self._parameters) > 1 else 1.0
+        self._a2 = self._parameters[2] if len(self._parameters) > 2 else 0.0
 
     def __call__(self, xarr):
         x = xarr[0]
-        return np.sin(self._a1 * x + self._a2)
+        return np.sin(self._a1 * x + self._a2) * self._a0
 
     def __repr__(self):
         return "1d sin"
@@ -146,8 +163,9 @@ class LepageTest(TargetFunction):
 
 
 class UquarkPDF(TargetFunction):
-    """In order to avoid having to install lhapdf,
-    the data for the uquark for NNPDF4.0 is saved as a npz file"""
+    """1d version of the uquark PDF
+    Doesn't need to have a PDF interpolation library installed as
+    the resutls for NNPDF4.0 are saved as an npz file"""
 
     max_par = 0
     max_ndim = 1
@@ -172,6 +190,7 @@ class UquarkPDF(TargetFunction):
 
     @property
     def xmax(self):
+        return [0.7]
         return [np.max(self._xgrid)]
 
     @property
@@ -181,10 +200,89 @@ class UquarkPDF(TargetFunction):
         return self._xgrid[im:ip]
 
 
+class UquarkPDF2d(TargetFunction):
+    """Implementation of the u-quark PDF from NNPDF4.0
+    It requires two dimensions (x,) and (Q,) and pdfflow needs to be installed
+
+    The limits in Q are normalized between 0 and 1, but the PDF actually takes
+    an actual Q**2 in GeV^2
+    """
+
+    max_par = 0
+    max_ndim = 2
+    override = True
+
+    _min_x = 1e-3
+    _min_q = 25.0
+    _max_x = 0.7
+    _max_q = 125.0
+
+    def build(self):
+        if self.ndim < 2:
+            raise ValueError("This target, uquark2d, needs 2 dimensions: x,q")
+
+        nx = 120
+        nq = 100
+        x = np.concatenate(
+            [
+                np.logspace(np.log10(self._min_x), -1, 2 * nx // 3),
+                np.linspace(0.1, self._max_x, nx // 3),
+            ]
+        )
+
+        q = np.linspace(0, 1, nq)
+        xx, qq = np.meshgrid(x, q)
+        self._xgrid = np.column_stack([xx.ravel(), qq.ravel()])
+
+        self._pdf = mkPDF("nnpdf40/0", dirname=Path(__file__).parent)
+
+    def __call__(self, xarr):
+        x = xarr[0]
+        q = self._min_q + xarr[1] * (self._max_q - self._min_q)
+        return self._pdf.py_xfxQ2(2, [x], [q**2]).numpy()
+
+    def __repr__(self):
+        return f"xu(x)"
+
+    def integral(self, xmin, xmax):
+        npoints = 1000
+        xgrid = np.linspace(xmin[0], xmax[0], npoints)
+        q = 1.0 * (self._max_q - self._min_q) + self._min_q
+        print(f"Computing the integral for {q=}")
+        q2grid = np.ones_like(xgrid) * q**2
+        vals = self._pdf.py_xfxQ2(2, xgrid, q2grid)
+        xdelta = xmax[0] - xmin[0]
+        return (np.average(vals) * xdelta, 0.0)
+
+    def dimension_name(self, d):
+        if d == 0:
+            return "x"
+        if d == 1:
+            return "q"
+
+    def dimension_scale(self, d):
+        if d == 0:
+            return "log"
+        return "linear"
+
+    @property
+    def xmin(self):
+        return [self._min_x, 0]
+
+    @property
+    def xmax(self):
+        return [self._max_x, 1]
+
+    @property
+    def xgrid(self):
+        return self._xgrid
+
+
 available_targets = {
     "sin1d": Sin1d,
     "cosnd": Cosnd,
     "sind": Sind,
     "lepage": LepageTest,
     "uquark": UquarkPDF,
+    "uquark2d": UquarkPDF2d,
 }

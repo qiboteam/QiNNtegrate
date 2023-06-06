@@ -1,18 +1,18 @@
 """
     Main script to launch the examples and benchmarks
 """
-import json
-import copy
-import tempfile
 from argparse import ArgumentParser, ArgumentTypeError
+import copy
+import json
 from pathlib import Path
+import tempfile
 
-import numpy as np
 from matplotlib import pyplot as plt
+import numpy as np
 
+from qinntegrate.optimization import available_optimizers, launch_optimization
+from qinntegrate.quanting import available_ansatz, generate_ansatz_pool
 from qinntegrate.target import available_targets
-from qinntegrate.optimization import launch_optimization, available_optimizers
-from qinntegrate.quanting import available_ansatz
 
 TARGETS = list(available_targets.keys())
 ANSATZS = list(available_ansatz.keys())
@@ -53,57 +53,81 @@ def valid_optimizer(val_raw):
     return valid_this(val_raw, available_optimizers, "Optimizer")
 
 
-def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=int(1e2)):
+def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
     """Plot botht he predictor and the target"""
     xmin = np.array(xmin)
     xmax = np.array(xmax)
 
     for d in range(target.ndim):
+        xaxis_name = target.dimension_name(d)
+        xaxis_scale = target.dimension_scale(d)
         # Create a linear space in the dimension we are plotting
         xlin = np.linspace(xmin[d], xmax[d], npoints)
 
-        for i in range(target.ndim):
+        if xaxis_scale == "log":
+            # change to log
+            xlin = np.logspace(np.log10(xmin[d]), np.log10(xmax[d]), npoints)
+
+        for i in range(target.ndim * 2):
             # For every extra dimension do an extra plot so that we have more random points
             # in the other dimensions
 
             # Select a random point in the other dimensions
-            xran = np.random.rand(target.ndim) * (xmax - xmin) + xmin
+            xran_origin = np.random.rand(target.ndim) * (xmax - xmin) + xmin
 
             ytrue = []
-            ypred = []
+            all_xs = []
+
             for xx in xlin:
+                xran = copy.deepcopy(xran_origin)
                 xran[d] = xx
                 ytrue.append(target(xran))
-                ypred.append(predictor.forward_pass(xran))
+                all_xs.append(xran)
 
-            plt.plot(
-                xlin, ytrue, label=f"Target n{i}", linewidth=2.5, color="red", alpha=0.6, ls="-"
-            )
+            ypred = predictor.vectorized_forward_pass(all_xs)
+
+            if target.ndim == 2:
+                # when there is only 2 dimensions only one variable is fixed
+                # and so we can actually write the numerical value
+                other_d = (d + 1) % 2
+                fixed_name = target.dimension_name(other_d)
+                tag = f"{fixed_name}={xran[other_d]:.2}"
+            else:
+                tag = f"n{i}"
+
+            plt.plot(xlin, ytrue, label=f"Target {tag}", linewidth=2.5, alpha=0.6, ls="-")
             plt.plot(
                 xlin,
                 ypred,
-                label=f"Simulation n{i}",
+                label=f"Simulation {tag}",
                 linewidth=1.5,
-                color="blue",
                 alpha=0.7,
                 ls="-.",
             )
+
         plt.legend()
 
         plt.grid(True)
-        plt.title("Integrand fit")
-        plt.xlabel(r"$x$")
-        plt.ylabel(r"$y$")
+        plt.xscale(xaxis_scale)
+        plt.title(f"Integrand fit, dependence on {xaxis_name}")
+        plt.xlabel(rf"${xaxis_name}$")
+        plt.ylabel(r"$f(\vec{x})$")
         plt.savefig(output_folder / f"output_plot_d{d+1}.png")
         plt.close()
 
 
-def _generate_limits(xmin, xmax):
+def _generate_limits(xmin, xmax, dimensions=1):
     """Generate the lists of limits to evaluate the primitive at
+
+    For the dimensions that are not integrated the upper limits
+    will be used as value with which the circuit will be called
+
     Parameters
     ---------
         xmin: list of inferior limits (one per dimension)
         xmax: list of superior limits
+        dimensions: int
+            dimensions over which the integral is taken
 
     Returns
     -------
@@ -112,12 +136,13 @@ def _generate_limits(xmin, xmax):
     """
     limits = [np.array([])]
     signs = [1.0]
-    for xm, xp in zip(xmin, xmax):
+    for i, (xm, xp) in enumerate(zip(xmin, xmax)):
         next_l = []
         next_s = []
         for curr_l, curr_s in zip(limits, signs):
-            next_l.append(np.concatenate([curr_l, [xm]]))
-            next_s.append(-curr_s)
+            if i < dimensions:
+                next_l.append(np.concatenate([curr_l, [xm]]))
+                next_s.append(-curr_s)
 
             next_l.append(np.concatenate([curr_l, [xp]]))
             next_s.append(curr_s)
@@ -145,6 +170,9 @@ if __name__ == "__main__":
     parser.add_argument("--xmax", help="Integration limit xf", nargs="+", type=float, default=[1.0])
     parser.add_argument("-o", "--output", help="Output folder", type=Path, default=None)
     parser.add_argument("-l", "--load", help="Load initial parameters from", type=Path)
+    parser.add_argument(
+        "-j", "--jobs", help="Number of processes to utilize (default 4)", type=int, default=4
+    )
 
     target_parser = parser.add_argument_group("Target function")
     target_parser.add_argument(
@@ -216,7 +244,9 @@ if __name__ == "__main__":
 
     # Construct the target function
     target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
-    observable = args.ansatz(nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim)
+    observable = generate_ansatz_pool(
+        args.ansatz, nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, nprocesses=args.jobs
+    )
 
     xmin = args.xmin
     xmax = args.xmax
@@ -241,12 +271,11 @@ if __name__ == "__main__":
     if target_fun.override:
         xmin = target_fun.xmin
         xmax = target_fun.xmax
-        xarr = np.array(target_fun.xgrid).reshape(-1, 1)
+        xarr = np.array(target_fun.xgrid).reshape(-1, target_fun.ndim)
 
     print(f" > Using {xmin} as lower limit of the integral")
     print(f" > Using {xmax} as upper limit of the integral")
 
-    # And... integrate!
     if args.load:
         initial_p = np.load(args.load)
         observable.set_parameters(initial_p)
@@ -267,8 +296,9 @@ if __name__ == "__main__":
     observable.set_parameters(best_p)
 
     # Prepare all combinations of limits
-    limits, signs = _generate_limits(xmin, xmax)
+    limits, signs = _generate_limits(xmin, xmax, dimensions=observable.nderivatives)
 
+    # And... integrate!
     res = 0.0
     for int_limit, sign in zip(limits, signs):
         res += sign * observable.execute_with_x(int_limit)
