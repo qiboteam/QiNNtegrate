@@ -1,4 +1,4 @@
 #!/bin/sh
 
-python main.py --optimizer basinhopping --npoints 100 --layers 1 --absolute --nshots 10000 --nqubits 3 --ndim 3 --target cosnd
+python main.py --optimizer lbfgs --npoints 100 --layers 4 --absolute --nqubits 1 --ndim 2 --target uquark2d --ansatz qpdf2q -j 8
   

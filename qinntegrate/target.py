@@ -65,6 +65,14 @@ class TargetFunction:
     def __repr__(self):
         return self.__class__.__name__
 
+    def dimension_name(self, d):
+        """Returns the name of dimensions d"""
+        return f"x{d+1}"
+
+    def dimension_scale(self, d):
+        """Returns the scale of the dimension for plots (eg. log or linear)"""
+        return "linear"
+
     # When override == True, the target function should also implement the following properties
     @property
     def xmin(self):
@@ -195,31 +203,34 @@ class UquarkPDF(TargetFunction):
 class UquarkPDF2d(TargetFunction):
     """Implementation of the u-quark PDF from NNPDF4.0
     It requires two dimensions (x,) and (Q,) and pdfflow needs to be installed
+
+    The limits in Q are normalized between 0 and 1, but the PDF actually takes
+    an actual Q**2 in GeV^2
     """
 
     max_par = 0
     max_ndim = 2
     override = True
 
-    _min_x = 1e-4
-    _min_q = 6.65**2
+    _min_x = 1e-3
+    _min_q = 25.0
     _max_x = 0.7
-    _max_q = 16.65**2
+    _max_q = 125.0
 
     def build(self):
         if self.ndim < 2:
             raise ValueError("This target, uquark2d, needs 2 dimensions: x,q")
 
-        nx = 70
-        nq = 20
+        nx = 120
+        nq = 100
         x = np.concatenate(
             [
-                np.logspace(np.log10(self._min_x), -1, nx // 2),
-                np.linspace(0.1, self._max_x, nx // 2),
+                np.logspace(np.log10(self._min_x), -1, 2 * nx // 3),
+                np.linspace(0.1, self._max_x, nx // 3),
             ]
         )
-        q = np.linspace(self._min_q, self._max_q, nq)
 
+        q = np.linspace(0, 1, nq)
         xx, qq = np.meshgrid(x, q)
         self._xgrid = np.column_stack([xx.ravel(), qq.ravel()])
 
@@ -227,8 +238,8 @@ class UquarkPDF2d(TargetFunction):
 
     def __call__(self, xarr):
         x = xarr[0]
-        q = xarr[1]
-        return self._pdf.py_xfxQ2(2, [x], [q]).numpy()
+        q = self._min_q + xarr[1] * (self._max_q - self._min_q)
+        return self._pdf.py_xfxQ2(2, [x], [q**2]).numpy()
 
     def __repr__(self):
         return f"xu(x)"
@@ -236,20 +247,31 @@ class UquarkPDF2d(TargetFunction):
     def integral(self, xmin, xmax):
         npoints = 1000
         xgrid = np.linspace(xmin[0], xmax[0], npoints)
-        q2 = xmin[1]
-        print(f"Computing the integral for {q2=}")
-        q2grid = [q2] * npoints
+        q = 1.0 * (self._max_q - self._min_q) + self._min_q
+        print(f"Computing the integral for {q=}")
+        q2grid = np.ones_like(xgrid) * q**2
         vals = self._pdf.py_xfxQ2(2, xgrid, q2grid)
         xdelta = xmax[0] - xmin[0]
         return (np.average(vals) * xdelta, 0.0)
 
+    def dimension_name(self, d):
+        if d == 0:
+            return "x"
+        if d == 1:
+            return "q"
+
+    def dimension_scale(self, d):
+        if d == 0:
+            return "log"
+        return "linear"
+
     @property
     def xmin(self):
-        return [self._min_x, self._min_q]
+        return [self._min_x, 0]
 
     @property
     def xmax(self):
-        return [self._max_x, self._max_q]
+        return [self._max_x, 1]
 
     @property
     def xgrid(self):

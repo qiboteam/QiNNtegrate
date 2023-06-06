@@ -26,7 +26,7 @@ class Optimizer:
 
     _method = None
 
-    def __init__(self, xarr, target, predictor, normalize=True, nbatch=1000, randomize_batch=True):
+    def __init__(self, xarr, target, predictor, normalize=True, nbatch=10000, randomize_batch=True):
         self._target = target
         self._predictor = predictor
         self._xarr = xarr
@@ -163,7 +163,7 @@ class BasinHopping(Optimizer):
     def optimize(self, initial_p):
         print(f"Initial parameters: {self._predictor.parameters}")
         res = basinhopping(
-            func=self.loss, x0=initial_p, niter=self._niter, disp=self._disp, niter_success=2
+            func=self.loss, x0=initial_p, niter=self._niter, disp=self._disp, niter_success=5
         )
         return None, res["x"]
 
@@ -227,7 +227,7 @@ def launch_optimization(
     target,
     optimizer_class,
     max_iterations=100,
-    max_evals=int(1e5),
+    max_evals=int(5e5),
     tol_error=1e-5,
     normalize=True,
 ):

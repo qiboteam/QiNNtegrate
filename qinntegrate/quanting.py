@@ -167,7 +167,7 @@ class BaseVariationalObservable:
         """Print a model of the circuit"""
         print(
             f"""{self}
-Circuit drawing:
+Circuit drawing:\n
     {self._circuit.draw()}
 Circuit summary:
     {self._circuit.summary()}
@@ -380,8 +380,6 @@ class qPDFAnsatz(BaseVariationalObservable):
 
     def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model we are going to use a 1 qubit circuit."""
-        if nqubits != 1:
-            raise ValueError("The qPDF ansatz allows only 1 qbit")
         if ndim > 2:
             raise ValueError("Only 2 dimensions can be fitted with qPDF")
         self._logarithm_variables = []
@@ -402,9 +400,6 @@ class qPDFAnsatz(BaseVariationalObservable):
 
         # then we add parametric gates
         for i in range(self._nlayers):
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # THIS ROTATION MUST BE FILLED WITH: log(x)
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             circuit.add(gates.RY(q=0, theta=0))
             idx = len(circuit.get_parameters()) - 1
             self._reuploading_indexes[0].append(idx)
@@ -420,9 +415,6 @@ class qPDFAnsatz(BaseVariationalObservable):
                 circuit.add(gates.RY(q=0, theta=0))
 
             if i != (self._nlayers - 1):
-                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                # THIS ROTATION MUST BE FILLED WITH: x
-                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 circuit.add(gates.RZ(q=0, theta=0))
                 self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
                 circuit.add(gates.RZ(q=0, theta=0))
@@ -444,12 +436,62 @@ class qPDFAnsatz(BaseVariationalObservable):
         return xarr[0] * der + circ
 
 
+class qPDF_v2(qPDFAnsatz):
+    """Alternative version for the qPDF problem."""
+
+    def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
+        """In this specific model we are going to use a 2 qubit circuit."""
+        if nqubits > 1 or ndim > 2:
+            raise ValueError(
+                "With this ansatz we tackle the 1d uquark qPDF and with a 1 qubits model."
+            )
+        # inheriting the BaseModel features
+        super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
+
+    def build_circuit(self):
+        """Builds the reuploading ansatz for the circuit"""
+
+        circuit = models.Circuit(self._nqubits)
+
+        for i in range(self._nlayers):
+            if i < (self._nlayers - 1):
+                # Add the q-rotation at the beginning of the layers
+                # and not for the last one
+                # q
+                circuit.add(gates.RZ(q=0, theta=0))
+                idx = len(circuit.get_parameters()) - 1
+                self._reuploading_indexes[1].append(idx)
+                # bias on q
+                circuit.add(gates.RZ(q=0, theta=0))
+
+            # first x upload: log(x)
+            circuit.add(gates.RY(q=0, theta=0))
+            idx = len(circuit.get_parameters()) - 1
+            self._reuploading_indexes[0].append(idx)
+            self._logarithm_variables.append(idx)
+            # bias on log(x)
+            circuit.add(gates.RY(q=0, theta=0))
+
+            # second x upload: (x)
+            circuit.add(gates.RZ(q=0, theta=0))
+            self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
+            circuit.add(gates.RZ(q=0, theta=0))
+
+        # measurement gates
+        circuit.add((gates.M(*range(self._nqubits))))
+
+        self._circuit = circuit
+        # Get the initial parameters
+        self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+
 available_ansatz = {
     "base": BaseVariationalObservable,
     "reuploading": ReuploadingAnsatz,
     "deepup": DeepReuploading,
     "verticup": VerticalUploading,
     "qpdf": qPDFAnsatz,
+    "qpdf2q": qPDF_v2,
 }
 
 

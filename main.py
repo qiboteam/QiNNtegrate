@@ -59,10 +59,16 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
     xmax = np.array(xmax)
 
     for d in range(target.ndim):
+        xaxis_name = target.dimension_name(d)
+        xaxis_scale = target.dimension_scale(d)
         # Create a linear space in the dimension we are plotting
         xlin = np.linspace(xmin[d], xmax[d], npoints)
 
-        for i in range(target.ndim):
+        if xaxis_scale == "log":
+            # change to log
+            xlin = np.logspace(np.log10(xmin[d]), np.log10(xmax[d]), npoints)
+
+        for i in range(target.ndim * 2):
             # For every extra dimension do an extra plot so that we have more random points
             # in the other dimensions
 
@@ -80,21 +86,32 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
 
             ypred = predictor.vectorized_forward_pass(all_xs)
 
-            plt.plot(xlin, ytrue, label=f"Target n{i}", linewidth=2.5, alpha=0.6, ls="-")
+            if target.ndim == 2:
+                # when there is only 2 dimensions only one variable is fixed
+                # and so we can actually write the numerical value
+                other_d = (d + 1) % 2
+                fixed_name = target.dimension_name(other_d)
+                tag = f"{fixed_name}={xran[other_d]:.2}"
+            else:
+                tag = f"n{i}"
+
+            plt.plot(xlin, ytrue, label=f"Target {tag}", linewidth=2.5, alpha=0.6, ls="-")
             plt.plot(
                 xlin,
                 ypred,
-                label=f"Simulation n{i}",
+                label=f"Simulation {tag}",
                 linewidth=1.5,
                 alpha=0.7,
                 ls="-.",
             )
+
         plt.legend()
 
         plt.grid(True)
-        plt.title("Integrand fit")
-        plt.xlabel(r"$x$")
-        plt.ylabel(r"$y$")
+        plt.xscale(xaxis_scale)
+        plt.title(f"Integrand fit, dependence on {xaxis_name}")
+        plt.xlabel(rf"${xaxis_name}$")
+        plt.ylabel(r"$f(\vec{x})$")
         plt.savefig(output_folder / f"output_plot_d{d+1}.png")
         plt.close()
 
@@ -259,7 +276,6 @@ if __name__ == "__main__":
     print(f" > Using {xmin} as lower limit of the integral")
     print(f" > Using {xmax} as upper limit of the integral")
 
-    # And... integrate!
     if args.load:
         initial_p = np.load(args.load)
         observable.set_parameters(initial_p)
@@ -282,6 +298,7 @@ if __name__ == "__main__":
     # Prepare all combinations of limits
     limits, signs = _generate_limits(xmin, xmax, dimensions=observable.nderivatives)
 
+    # And... integrate!
     res = 0.0
     for int_limit, sign in zip(limits, signs):
         res += sign * observable.execute_with_x(int_limit)
