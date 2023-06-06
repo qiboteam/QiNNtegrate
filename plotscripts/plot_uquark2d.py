@@ -25,6 +25,10 @@ def get_primitive(obs, xmin, xmax, scaled_q):
     return upper_val - lower_val
 
 
+def relative_error(x, y):
+    return 100 * np.abs(x - y) / x
+
+
 parser = ArgumentParser()
 parser.add_argument("output_folder", help="Output folder where to read the data from", type=Path)
 
@@ -40,24 +44,38 @@ qpdf.set_parameters(np.load(weight_file))
 updf = UquarkPDF2d(ndim=2)
 
 xmin = 1e-3
-xmax = 0.7
+xmax = 0.70
 qscaled_points = np.linspace(0, 1, 40)
 q2points = (qscaled_points * (updf._max_q - updf._min_q) + updf._min_q) ** 2
 
 target_vals = []
 circuit_vals = []
+errors = []
 
 for qscaled in qscaled_points:
-    res, error = updf.integral(xmin, xmax, qscaled, verbose=False)
+    res, error = updf.integral(xmin, xmax, qscaled, verbose=False, exact=True)
     target_vals.append(res)
+    errors.append(error)
     circuit_vals.append(get_primitive(qpdf, xmin, xmax, qscaled))
 
+target_vals = np.array(target_vals)
+circuit_vals = np.array(circuit_vals)
 
 plt.grid(True)
+plt.subplots(2, 1, sharex=True)
+
+plt.subplot(2, 1, 1)
 plt.plot(q2points, target_vals, label="True result")
 plt.plot(q2points, circuit_vals, label="Approximation")
-plt.xlabel(r"$Q^2$ (GeV$^2$)")
 plt.ylabel(r"$\int_0^{1} xu(x, q)$")
 plt.legend()
+
+plt.subplot(2, 1, 2)
+rr = relative_error(target_vals, circuit_vals)
+plt.plot(q2points, rr, label="Error")
+plt.ylabel("% error")
+plt.legend()
+
+plt.xlabel(r"$Q^2$ (GeV$^2$)")
 
 plt.savefig("test.png")
