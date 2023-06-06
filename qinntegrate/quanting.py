@@ -13,7 +13,7 @@ set_backend("numpy")
 
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
-DERIVATIVE = False
+DERIVATIVE = True
 
 
 def _recursive_shifts(arrays, index=1, s=SHIFT):
@@ -167,7 +167,7 @@ class BaseVariationalObservable:
         """Print a model of the circuit"""
         print(
             f"""{self}
-Circuit drawing:
+Circuit drawing:\n
     {self._circuit.draw()}
 Circuit summary:
     {self._circuit.summary()}
@@ -436,14 +436,14 @@ class qPDFAnsatz(BaseVariationalObservable):
         return xarr[0] * der + circ
 
 
-class qPDF_2q(qPDFAnsatz):
+class qPDF_v2(qPDFAnsatz):
     """Alternative version for the qPDF problem."""
 
     def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model we are going to use a 2 qubit circuit."""
-        if nqubits != 2 or ndim != 2:
+        if nqubits > 1 or ndim > 2:
             raise ValueError(
-                "With this ansatz we tackle the 1d uquark qPDF and with a 2 qubits model."
+                "With this ansatz we tackle the 1d uquark qPDF and with a 1 qubits model."
             )
         # inheriting the BaseModel features
         super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
@@ -453,20 +453,30 @@ class qPDF_2q(qPDFAnsatz):
 
         circuit = models.Circuit(self._nqubits)
 
-        # then we add parametric gates
         for i in range(self._nlayers):
-            for q in range(self._nqubits):
-                # q=0 and q=1 correspond to the two variables in the reuploading_indexes
-                circuit.add(gates.RY(q=q, theta=0))
+            if i < (self._nlayers - 1):
+                # Add the q-rotation at the beginning of the layers
+                # and not for the last one
+                # q
+                circuit.add(gates.RZ(q=0, theta=0))
                 idx = len(circuit.get_parameters()) - 1
-                self._reuploading_indexes[q].append(idx)
-                if q == 0:
-                    self._logarithm_variables.append(idx)
-                circuit.add(gates.RY(q=q, theta=0))
-                if i != (self._nlayers - 1):
-                    circuit.add(gates.RZ(q=q, theta=0))
-                    self._reuploading_indexes[q].append(len(circuit.get_parameters()) - 1)
-                    circuit.add(gates.RZ(q=q, theta=0))
+                self._reuploading_indexes[1].append(idx)
+                # bias on q
+                circuit.add(gates.RZ(q=0, theta=0))
+
+            # first x upload: log(x)
+            circuit.add(gates.RY(q=0, theta=0))
+            idx = len(circuit.get_parameters()) - 1
+            self._reuploading_indexes[0].append(idx)
+            self._logarithm_variables.append(idx)
+            # bias on log(x)
+            circuit.add(gates.RY(q=0, theta=0))
+
+            # second x upload: (x)
+            circuit.add(gates.RZ(q=0, theta=0))
+            self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
+            circuit.add(gates.RZ(q=0, theta=0))
+
         # measurement gates
         circuit.add((gates.M(*range(self._nqubits))))
 
@@ -481,7 +491,7 @@ available_ansatz = {
     "deepup": DeepReuploading,
     "verticup": VerticalUploading,
     "qpdf": qPDFAnsatz,
-    "qpdf2q": qPDF_2q,
+    "qpdf2q": qPDF_v2,
 }
 
 
