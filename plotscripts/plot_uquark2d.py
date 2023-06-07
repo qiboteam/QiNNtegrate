@@ -60,14 +60,15 @@ for qscaled in qscaled_points:
 
 target_vals = np.array(target_vals)
 circuit_vals = np.array(circuit_vals)
-
+plt.figure(figsizew=(8,5))
+plt.title("Marginalization of the PDF integral")
 plt.grid(True)
 plt.subplots(2, 1, sharex=True)
 
 plt.subplot(2, 1, 1)
-plt.plot(q2points, target_vals, label="True result")
-plt.plot(q2points, circuit_vals, label="Approximation")
-plt.ylabel(r"$\int_0^{1} xu(x, q)$")
+plt.plot(q2points, target_vals, color="blue", alpha=0.7, label="True result")
+plt.plot(q2points, circuit_vals, color="red", alpha=0.7, label="Approximation")
+plt.ylabel(r"$\int_0^{1} xu(x, q) dx$")
 plt.legend()
 
 plt.subplot(2, 1, 2)
