@@ -73,7 +73,7 @@ plt.legend()
 
 plt.subplot(2, 1, 2)
 rr = relative_error(target_vals, circuit_vals)
-plt.plot(q2points, rr, label="Error")
+plt.plot(q2points, rr, color="black", alpha=0.5, label="Error")
 plt.ylabel("% error")
 plt.legend()
 
