@@ -60,7 +60,7 @@ for qscaled in qscaled_points:
 
 target_vals = np.array(target_vals)
 circuit_vals = np.array(circuit_vals)
-plt.figure(figsizew=(8,5))
+plt.figure(figsize=(8,5))
 plt.title("Marginalization of the PDF integral")
 plt.grid(True)
 plt.subplots(2, 1, sharex=True)
