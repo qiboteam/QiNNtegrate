@@ -244,15 +244,41 @@ class UquarkPDF2d(TargetFunction):
     def __repr__(self):
         return f"xu(x)"
 
-    def integral(self, xmin, xmax):
-        npoints = 1000
-        xgrid = np.linspace(xmin[0], xmax[0], npoints)
-        q = 1.0 * (self._max_q - self._min_q) + self._min_q
-        print(f"Computing the integral for {q=}")
+    def integral(self, xmin, xmax, scaled_q=1.0, verbose=True, exact=True):
+
+        q = scaled_q * (self._max_q - self._min_q) + self._min_q
+        if verbose:
+            print(f"Computing the integral for {q=}")
+
+        if exact:
+            # This is slower but exact, otherwise just approximate the integration
+            fun = lambda x: self([x, scaled_q])
+            return nquad(fun, [(xmin, xmax)])
+
+        npoints = 2000
+
+        # Take only the x
+        if not isinstance(xmin, (float, int)):
+            xmin = xmin[0]
+            xmax = xmax[0]
+
+        # First integrate at small x
+        xgrids = []
+        if xmin < 0.1:
+            xgrids.append(np.logspace(np.log(xmin), -1, npoints // 2))
+        if xmax > 0.1:
+            xgrids.append(np.linspace(0.1, xmax, npoints // 2))
+        xgrid = np.concatenate(xgrids)
+
+        # Get weights
+        sp = np.diff(xgrid, append=xgrid[-1], prepend=xgrid[0])
+        weights = (sp[1:] + sp[:-1])/2.0
+
         q2grid = np.ones_like(xgrid) * q**2
-        vals = self._pdf.py_xfxQ2(2, xgrid, q2grid)
-        xdelta = xmax[0] - xmin[0]
-        return (np.average(vals) * xdelta, 0.0)
+
+        pdf_vals = self._pdf.py_xfxQ2(2, xgrid, q2grid)
+
+        return np.sum(pdf_vals*weights), 0.0
 
     def dimension_name(self, d):
         if d == 0:
