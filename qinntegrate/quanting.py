@@ -502,7 +502,9 @@ class GoodScaling(BaseVariationalObservable):
         q = int(x_idx/2)
 
         circuit.add(gates.RY(q, theta=0))
+        circuit.add(gates.RZ(q, theta=0))
         self._reuploading_indexes[x_idx].append(len(circuit.get_parameters()) - 1)
+        circuit.add(gates.RZ(q, theta=0))
         circuit.add(gates.RY(q, theta=0))
         circuit.add(gates.RZ(q, theta=0))
         
