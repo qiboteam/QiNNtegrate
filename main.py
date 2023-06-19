@@ -201,7 +201,7 @@ if __name__ == "__main__":
         "--nqubits", help="Number of qubits for the VQE", default=1, type=check_qbits
     )
     circ_parser.add_argument("--layers", help="Number of layers for the VQE", default=2, type=int)
-    circ_parser.add_argument("--nshots", help="Number of shots for each < Z > evaluation", default=1000, type=int)
+    circ_parser.add_argument("--nshots", help="Number of shots for each < Z > evaluation", type=int)
 
     opt_parser = parser.add_argument_group("Optimization definition")
     opt_parser.add_argument(
