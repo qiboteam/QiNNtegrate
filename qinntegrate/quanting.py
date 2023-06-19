@@ -13,7 +13,7 @@ set_backend("numpy")
 
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
-DERIVATIVE = True
+DERIVATIVE = False
 
 
 def _recursive_shifts(arrays, index=1, s=SHIFT):
@@ -97,10 +97,11 @@ class BaseVariationalObservable:
     In this case the inputs of the function are injected in the `ndim` first parameters.
     """
 
-    def __init__(self, nqubits=3, nlayers=3, ndim=1, initial_state=None, verbose=True):
+    def __init__(self, nqubits=3, nlayers=3, ndim=1, nshots=None, initial_state=None, verbose=True):
         self._ndim = ndim
         self._nqubits = nqubits
         self._nlayers = nlayers
+        self._nshots = nshots
         self._circuit = None
         self._observable = None
         self._variational_params = []
@@ -113,6 +114,7 @@ class BaseVariationalObservable:
 
         self.build_circuit()
         self.build_observable()
+        self._backend = self._observable.backend
 
         # setting initial random parameters
         if self._circuit is None:
@@ -134,7 +136,7 @@ class BaseVariationalObservable:
 
     @cached_property
     def _backend_exe(self):
-        return self._observable.backend.execute_circuit
+        return self._backend.execute_circuit
 
     @cached_property
     def nparams(self):
@@ -212,8 +214,19 @@ Circuit summary:
             circ_parameters[parameter.index] = parameter.y
         # Set the parameters in the circuit
         self._circuit.set_parameters(circ_parameters)
-        state = self._backend_exe(circuit=self._circuit, initial_state=self._initial_state).state()
-        return self._observable.expectation(state) * self._scaling
+        # exact simulation if nshots is None
+        if self._nshots is None:
+            state = self._backend_exe(circuit=self._circuit, initial_state=self._initial_state).state()
+            expectation_value = self._observable.expectation(state) * self._scaling
+        # shot-noise simulation otherwise
+        else:
+            expectation_value = self._backend.execute_circuit(
+                circuit=self._circuit, 
+                initial_state=self._initial_state, 
+                nshots=self._nshots).expectation_from_samples(self._observable)
+            expectation_value = np.real(expectation_value)
+            expectation_value *= self._scaling
+        return expectation_value 
 
     @property
     def parameters(self):
@@ -284,6 +297,7 @@ class ReuploadingAnsatz(BaseVariationalObservable):
         """In this specific model the number of qubits is equal to the dimensionality
         of the problem."""
         if nqubits != ndim:
+            print(nqubits, ndim)
             raise ValueError(
                 "For ReuploadingAnsatz the number of qubits must be equal to the number of dimensions"
             )
@@ -575,9 +589,9 @@ available_ansatz = {
 
 
 #### Pooling management
-def initialize_pool(observable_class, nqubits, nlayers, ndim):
+def initialize_pool(observable_class, nqubits, nlayers, ndim, nshots):
     global my_ansatz
-    my_ansatz = observable_class(nqubits=nqubits, nlayers=nlayers, ndim=ndim, verbose=False)
+    my_ansatz = observable_class(nqubits=nqubits, nlayers=nlayers, ndim=ndim, nshots=nshots, verbose=False)
 
 
 def worker_set_parameters(parameters, running_pool):
@@ -653,12 +667,12 @@ class ObservablePool:
         self._pool.terminate()
 
 
-def generate_ansatz_pool(observable_class, nqubits=1, nlayers=1, ndim=1, nprocesses=1):
+def generate_ansatz_pool(observable_class, nshots, nqubits=1, nlayers=1, ndim=1, nprocesses=1):
     """Generate a pool of ansatz"""
     pool = Pool(
         processes=nprocesses,
         initializer=initialize_pool,
-        initargs=(observable_class, nqubits, nlayers, ndim),
+        initargs=(observable_class, nqubits, nlayers, ndim, nshots),
     )
 
     return ObservablePool(pool)

@@ -201,6 +201,7 @@ if __name__ == "__main__":
         "--nqubits", help="Number of qubits for the VQE", default=1, type=check_qbits
     )
     circ_parser.add_argument("--layers", help="Number of layers for the VQE", default=2, type=int)
+    circ_parser.add_argument("--nshots", help="Number of shots for each < Z > evaluation", default=1000, type=int)
 
     opt_parser = parser.add_argument_group("Optimization definition")
     opt_parser.add_argument(
@@ -247,7 +248,7 @@ if __name__ == "__main__":
     # Construct the target function
     target_fun = a_target(parameters=args.parameters, ndim=args.ndim)
     observable = generate_ansatz_pool(
-        a_ansatz, nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, nprocesses=args.jobs
+        args.ansatz, nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, nshots=args.nshots, nprocesses=args.jobs
     )
 
     xmin = args.xmin
