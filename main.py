@@ -163,6 +163,13 @@ def _generate_integration_x(xmin, xmax, padding=False, npoints=int(5e2)):
     return np.random.rand(npoints, len(xmin)) * (xmax - xmin) + xmin
 
 
+def error_over_runs(results, errors):
+    """Calculate error of the measurements provided with their errors"""
+    N = len(results)
+    var = np.var(results)
+    return var**2/N + (1/N**2)*np.sum(errors**2)
+
+
 if __name__ == "__main__":
     parser = ArgumentParser()
 
@@ -185,7 +192,11 @@ if __name__ == "__main__":
         type=float,
         default=(),
     )
-    target_parser.add_argument("--ndim", help="Number of dimensions", type=int, default=1)
+    target_parser.add_argument(
+        "--ndim", 
+        help="Number of dimensions", 
+        type=int, 
+        default=1)
 
     # Circuit parameters
     circ_parser = parser.add_argument_group("Circuit definition")
@@ -198,10 +209,20 @@ if __name__ == "__main__":
     )
     # Circuit features
     circ_parser.add_argument(
-        "--nqubits", help="Number of qubits for the VQE", default=1, type=check_qbits
+        "--nqubits", 
+        help="Number of qubits for the VQE", 
+        default=1, 
+        type=check_qbits
     )
-    circ_parser.add_argument("--layers", help="Number of layers for the VQE", default=2, type=int)
-    circ_parser.add_argument("--nshots", help="Number of shots for each < Z > evaluation", type=int)
+    circ_parser.add_argument(
+        "--layers", 
+        help="Number of layers for the VQE", 
+        default=2, 
+        type=int)
+    circ_parser.add_argument(
+        "--nshots", 
+        help="Number of shots for each < Z > evaluation", 
+        type=int)
 
     opt_parser = parser.add_argument_group("Optimization definition")
     opt_parser.add_argument(
@@ -229,6 +250,12 @@ if __name__ == "__main__":
         type=str,
         default="CMA",
     )
+    opt_parser.add_argument(
+        "--nruns", 
+        help="Number of times the optimization is repeated",
+        default=1, 
+        type=int)
+    
 
     args = parser.parse_args()
 
@@ -236,6 +263,12 @@ if __name__ == "__main__":
     a_target = valid_target(args.target)
     a_ansatz = valid_ansatz(args.ansatz)
     a_optimizer = valid_optimizer(args.optimizer)
+
+    # doesn't make sense to perform more than one run if simulation is exact
+    if args.nshots is None and args.nruns != 1:
+        raise ValueError(
+                "It is useless to set nruns > 1 if exact simulation is performed. Please set a number of shots or set nruns to be equal to 1."
+            )
 
     if args.output is None:
         # Generate a temporary output folder
@@ -279,34 +312,53 @@ if __name__ == "__main__":
     print(f" > Using {xmin} as lower limit of the integral")
     print(f" > Using {xmax} as upper limit of the integral")
 
+
     if args.load:
         initial_p = np.load(args.load)
-        observable.set_parameters(initial_p)
 
-    best_p = launch_optimization(
-        xarr,
-        observable,
-        target_fun,
-        a_optimizer,
-        max_iterations=args.maxiter,
-        normalize=not args.absolute,
-    )
+    # to collect all simulation results
+    simulation_results = np.zeros(args.nruns, dtype=np.float64)
 
+    # execute the experiment nruns times
+    for _ in range(args.nruns):
+
+        # initialize the problem to initial_p
+        if args.load: 
+            observable.set_parameters(initial_p)
+
+        # optimize
+        best_p = launch_optimization(
+            xarr,
+            observable,
+            target_fun,
+            a_optimizer,
+            max_iterations=args.maxiter,
+            normalize=not args.absolute,
+        )
+
+        # Let's see how this integral did
+        observable.set_parameters(best_p)
+
+        # Prepare all combinations of limits
+        limits, signs = _generate_limits(xmin, xmax, dimensions=observable.nderivatives)
+
+        # And... integrate!
+        res = 0.0
+        for int_limit, sign in zip(limits, signs):
+            res += sign * observable.execute_with_x(int_limit)
+        
+        simulation_results[_] = res
+        print(f"Result obtained with experiment {_+1}/{args.nruns}: {res:.4}")
+
+    # mean and std over the simulation results
+    results_mean = np.mean(np.asarray(simulation_results))
+    results_std = np.std(np.asarray(simulation_results))
+
+    # print theoretical results
     target_result, err = target_fun.integral(xmin, xmax)
     print(f"The target result for the integral of [{target_fun}] is {target_result:.4} +- {err:.4}")
 
-    # Let's see how this integral did
-    observable.set_parameters(best_p)
-
-    # Prepare all combinations of limits
-    limits, signs = _generate_limits(xmin, xmax, dimensions=observable.nderivatives)
-
-    # And... integrate!
-    res = 0.0
-    for int_limit, sign in zip(limits, signs):
-        res += sign * observable.execute_with_x(int_limit)
-
-    print(f"And our trained result is {res:.4}")
+    print(f"And our trained result is {results_mean:.4} +- {results_std:.4}")
     plot_integrand(observable, target_fun, xmin, xmax, output_folder)
 
     print(f"Saving results to {output_folder}\n")
