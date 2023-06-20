@@ -122,6 +122,8 @@ class BaseVariationalObservable:
 
         # Note that the total number of parameters in the circuit is the variational paramters + scaling
         self._nparams = len(self._circuit.get_parameters()) + 1
+        # fixing the seed for reproducibility
+        np.random.seed(1234)
         self._variational_params = np.random.randn(self._nparams - 1)
         self._scaling = 1.0
 
