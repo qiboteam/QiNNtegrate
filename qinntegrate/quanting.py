@@ -13,7 +13,7 @@ set_backend("numpy")
 
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
-DERIVATIVE = False
+DERIVATIVE = True
 
 
 def _recursive_shifts(arrays, index=1, s=SHIFT):
@@ -490,16 +490,14 @@ class GoodScaling(BaseVariationalObservable):
 
     def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model we are going to upload 2 variables to each qubit."""
-        if nqubits != (int((ndim-1)/2) + 1):
-            raise ValueError(
-                "Please set the number of qubits to be equal to int(ndim/2)+1."
-            )
+        if nqubits != (int((ndim - 1) / 2) + 1):
+            raise ValueError("Please set the number of qubits to be equal to int(ndim/2)+1.")
         # inheriting the BaseModel features
         super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
 
     def build_sheet(self, circuit, x_idx):
         """Uploading layer for a target variable x_idx"""
-        q = int(x_idx/2)
+        q = int(x_idx / 2)
 
         circuit.add(gates.RY(q, theta=0))
         circuit.add(gates.RZ(q, theta=0))
@@ -507,7 +505,6 @@ class GoodScaling(BaseVariationalObservable):
         circuit.add(gates.RZ(q, theta=0))
         circuit.add(gates.RY(q, theta=0))
         circuit.add(gates.RZ(q, theta=0))
-        
 
     def build_circuit(self):
         """Builds the reuploading ansatz for the circuit"""
@@ -524,7 +521,6 @@ class GoodScaling(BaseVariationalObservable):
                     circuit.add((gates.CZ(self._nqubits - 1, 0)))
         for q in range(self._nqubits):
             circuit.add(gates.RY(q, theta=0))
-
 
         # measurement gates
         circuit.add((gates.M(q) for q in range(self._nqubits)))
