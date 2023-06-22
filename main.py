@@ -163,7 +163,7 @@ def _generate_integration_x(xmin, xmax, padding=False, npoints=int(5e2)):
     return np.random.rand(npoints, len(xmin)) * (xmax - xmin) + xmin
 
 
-def error_over_runs(results, errors):
+def error_over_runs(results, errors): # not being used at the moment
     """Calculate error of the measurements provided with their errors"""
     N = len(results)
     var = np.var(results)
@@ -320,7 +320,7 @@ if __name__ == "__main__":
     simulation_results = np.zeros(args.nruns, dtype=np.float64)
 
     # execute the experiment nruns times
-    for _ in range(args.nruns):
+    for i in range(args.nruns):
 
         # initialize the problem to initial_p
         if args.load: 
@@ -347,8 +347,8 @@ if __name__ == "__main__":
         for int_limit, sign in zip(limits, signs):
             res += sign * observable.execute_with_x(int_limit)
         
-        simulation_results[_] = res
-        print(f"Result obtained with experiment {_+1}/{args.nruns}: {res:.4}")
+        simulation_results[i] = res
+        print(f"Result obtained with experiment {i+1}/{args.nruns}: {res:.4}")
 
     # mean and std over the simulation results
     results_mean = np.mean(np.asarray(simulation_results))
@@ -358,7 +358,7 @@ if __name__ == "__main__":
     target_result, err = target_fun.integral(xmin, xmax)
     print(f"The target result for the integral of [{target_fun}] is {target_result:.4} +- {err:.4}")
 
-    print(f"And our trained result is {results_mean:.4} +- {results_std:.4}")
+    print(f"Average trained result is {results_mean:.4} +- {results_std:.4}")
     plot_integrand(observable, target_fun, xmin, xmax, output_folder)
 
     print(f"Saving results to {output_folder}\n")

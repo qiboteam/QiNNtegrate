@@ -114,7 +114,6 @@ class BaseVariationalObservable:
 
         self.build_circuit()
         self.build_observable()
-        self._backend = self._observable.backend
 
         # setting initial random parameters
         if self._circuit is None:
@@ -138,7 +137,7 @@ class BaseVariationalObservable:
 
     @cached_property
     def _backend_exe(self):
-        return self._backend.execute_circuit
+        return self._observable.backend.execute_circuit
 
     @cached_property
     def nparams(self):
@@ -219,16 +218,15 @@ Circuit summary:
         # exact simulation if nshots is None
         if self._nshots is None:
             state = self._backend_exe(circuit=self._circuit, initial_state=self._initial_state).state()
-            expectation_value = self._observable.expectation(state) * self._scaling
+            expectation_value = self._observable.expectation(state)
         # shot-noise simulation otherwise
         else:
-            expectation_value = self._backend.execute_circuit(
+            expectation_value = self._backend_exe(
                 circuit=self._circuit, 
                 initial_state=self._initial_state, 
                 nshots=self._nshots).expectation_from_samples(self._observable)
             expectation_value = np.real(expectation_value)
-            expectation_value *= self._scaling
-        return expectation_value 
+        return expectation_value * self._scaling
 
     @property
     def parameters(self):
@@ -299,7 +297,6 @@ class ReuploadingAnsatz(BaseVariationalObservable):
         """In this specific model the number of qubits is equal to the dimensionality
         of the problem."""
         if nqubits != ndim:
-            print(nqubits, ndim)
             raise ValueError(
                 "For ReuploadingAnsatz the number of qubits must be equal to the number of dimensions"
             )
@@ -669,7 +666,7 @@ class ObservablePool:
         self._pool.terminate()
 
 
-def generate_ansatz_pool(observable_class, nshots, nqubits=1, nlayers=1, ndim=1, nprocesses=1):
+def generate_ansatz_pool(observable_class, nshots=None, nqubits=1, nlayers=1, ndim=1, nprocesses=1):
     """Generate a pool of ansatz"""
     pool = Pool(
         processes=nprocesses,
