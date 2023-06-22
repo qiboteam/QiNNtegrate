@@ -485,6 +485,52 @@ class qPDF_v2(qPDFAnsatz):
         self._variational_params = np.array(circuit.get_parameters()).flatten()
 
 
+class GoodScaling(BaseVariationalObservable):
+    """In this ansatz we upload 2 variables per qubit."""
+
+    def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
+        """In this specific model we are going to upload 2 variables to each qubit."""
+        if nqubits != (int((ndim - 1) / 2) + 1):
+            raise ValueError("Please set the number of qubits to be equal to int(ndim/2)+1.")
+        # inheriting the BaseModel features
+        super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
+
+    def build_sheet(self, circuit, x_idx):
+        """Uploading layer for a target variable x_idx"""
+        q = int(x_idx / 2)
+
+        circuit.add(gates.RY(q, theta=0))
+        circuit.add(gates.RZ(q, theta=0))
+        self._reuploading_indexes[x_idx].append(len(circuit.get_parameters()) - 1)
+        circuit.add(gates.RZ(q, theta=0))
+        circuit.add(gates.RY(q, theta=0))
+        circuit.add(gates.RZ(q, theta=0))
+
+    def build_circuit(self):
+        """Builds the reuploading ansatz for the circuit"""
+
+        circuit = models.Circuit(self._nqubits)
+
+        for _ in range(self._nlayers):
+            for dim in range(self._ndim):
+                self.build_sheet(circuit, dim)
+            # if nqubits > 1 we build entanglement
+            if self._nqubits > 1:
+                circuit.add((gates.CZ(q, q + 1) for q in range(0, self._nqubits - 1, 1)))
+                if self._nqubits > 2:
+                    circuit.add((gates.CZ(self._nqubits - 1, 0)))
+        for q in range(self._nqubits):
+            circuit.add(gates.RY(q, theta=0))
+
+        # measurement gates
+        circuit.add((gates.M(q) for q in range(self._nqubits)))
+
+        self._circuit = circuit
+
+        # Get the initial parameters
+        self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+
 available_ansatz = {
     "base": BaseVariationalObservable,
     "reuploading": ReuploadingAnsatz,
@@ -492,6 +538,7 @@ available_ansatz = {
     "verticup": VerticalUploading,
     "qpdf": qPDFAnsatz,
     "qpdf2q": qPDF_v2,
+    "goodscaling": GoodScaling,
 }
 
 
