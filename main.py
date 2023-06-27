@@ -68,7 +68,7 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
             # change to log
             xlin = np.logspace(np.log10(xmin[d]), np.log10(xmax[d]), npoints)
 
-        for i in range(target.ndim * 2):
+        for i in range(target.ndim // 2):
             # For every extra dimension do an extra plot so that we have more random points
             # in the other dimensions
 
@@ -176,10 +176,7 @@ if __name__ == "__main__":
 
     target_parser = parser.add_argument_group("Target function")
     target_parser.add_argument(
-        "--target",
-        help=f"Select target function, available: {TARGETS}",
-        type=valid_target,
-        default=valid_target("sin1d"),
+        "--target", help=f"Select target function, available: {TARGETS}", type=str, default="sin1d"
     )
     target_parser.add_argument(
         "--parameters",
@@ -196,8 +193,8 @@ if __name__ == "__main__":
     circ_parser.add_argument(
         "--ansatz",
         help=f"Circuit ansatz, please choose one among {ANSATZS}",
-        default=valid_ansatz("reuploading"),
-        type=valid_ansatz,
+        default="reuploading",
+        type=str,
     )
     # Circuit features
     circ_parser.add_argument(
@@ -228,11 +225,16 @@ if __name__ == "__main__":
     opt_parser.add_argument(
         "--optimizer",
         help=f"Optimizers, available options: {OPTIMIZ}",
-        type=valid_optimizer,
-        default=valid_optimizer("CMA"),
+        type=str,
+        default="CMA",
     )
 
     args = parser.parse_args()
+
+    # Update args
+    a_target = valid_target(args.target)
+    a_ansatz = valid_ansatz(args.ansatz)
+    a_optimizer = valid_optimizer(args.optimizer)
 
     if args.output is None:
         # Generate a temporary output folder
@@ -243,9 +245,9 @@ if __name__ == "__main__":
     print(output_folder)
 
     # Construct the target function
-    target_fun = args.target(parameters=args.parameters, ndim=args.ndim)
+    target_fun = a_target(parameters=args.parameters, ndim=args.ndim)
     observable = generate_ansatz_pool(
-        args.ansatz, nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, nprocesses=args.jobs
+        a_ansatz, nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, nprocesses=args.jobs
     )
 
     xmin = args.xmin
@@ -284,7 +286,7 @@ if __name__ == "__main__":
         xarr,
         observable,
         target_fun,
-        args.optimizer,
+        a_optimizer,
         max_iterations=args.maxiter,
         normalize=not args.absolute,
     )
@@ -317,11 +319,8 @@ if __name__ == "__main__":
     opts.pop("output")
     opts.pop("load")
     # And change some
-    opts["target"] = str(target_fun)
     opts["xmin"] = xmin
     opts["xmax"] = xmax
     opts["FinalResult"] = res
     opts["TargetResult"] = target_result
-    opts["ansatz"] = str(observable)
-    opts["optimizer"] = str(args.optimizer)
     json.dump(opts, arg_path.open("w", encoding="utf-8"), indent=True)

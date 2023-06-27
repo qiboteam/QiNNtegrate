@@ -56,9 +56,14 @@ class TargetFunction:
     def __call__(self, xarr):
         pass
 
-    def integral(self, xmin, xmax):
-        """Integrate the target function using nquad"""
-        fun = lambda *x: self(x)
+    def integral(self, xmin, xmax, marginalized_vars=None):
+        """Integrate the target function using nquad
+        If there are marginalized variables, they can be given as list to marginalized_vars
+        """
+        if marginalized_vars is None:
+            fun = lambda *x: self(x)
+        else:
+            fun = lambda *x: self(np.concatenate([marginalized_vars, x]))
         ranges = list(zip(xmin, xmax))
         return nquad(fun, ranges)
 
@@ -245,7 +250,6 @@ class UquarkPDF2d(TargetFunction):
         return f"xu(x)"
 
     def integral(self, xmin, xmax, scaled_q=1.0, verbose=True, exact=True):
-
         q = scaled_q * (self._max_q - self._min_q) + self._min_q
         if verbose:
             print(f"Computing the integral for {q=}")
@@ -272,13 +276,13 @@ class UquarkPDF2d(TargetFunction):
 
         # Get weights
         sp = np.diff(xgrid, append=xgrid[-1], prepend=xgrid[0])
-        weights = (sp[1:] + sp[:-1])/2.0
+        weights = (sp[1:] + sp[:-1]) / 2.0
 
         q2grid = np.ones_like(xgrid) * q**2
 
         pdf_vals = self._pdf.py_xfxQ2(2, xgrid, q2grid)
 
-        return np.sum(pdf_vals*weights), 0.0
+        return np.sum(pdf_vals * weights), 0.0
 
     def dimension_name(self, d):
         if d == 0:

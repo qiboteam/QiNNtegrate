@@ -22,7 +22,7 @@ def _recursive_shifts(arrays, index=1, s=SHIFT):
 
     Arrays must be a list of lists of _UploadedParameter
     (containing in the first iteration of the recursion, just one element)
-    index is the number of variable for which we want to generate the shifts
+    index is the number of variables for which we want to generate the shifts
     This allows the user to derivate with only a subset of the dimensions
     """
     index -= 1
@@ -40,6 +40,11 @@ def _recursive_shifts(arrays, index=1, s=SHIFT):
                 new_list_do[i] = par_m
                 new_lists.append(new_list_up)
                 new_lists.append(new_list_do)
+
+    # If at this point `new_list` is empty, it means we are marginalizing
+    # and maybe we are skipping some derivatives, in that case, "reset"
+    if not new_lists:
+        new_lists = arrays
 
     if index == 0:
         return new_lists
@@ -222,11 +227,38 @@ Circuit summary:
         self._scaling = new_parameters[0]
         self._variational_params = new_parameters[1:]
 
-    def forward_pass(self, xarr):
+    def marginal_pass(self, xarr, nmarg):
+        y = self._upload_parameters(xarr)
+
+        shifts = _recursive_shifts([y], index=nmarg)
+
+        res = 0.0
+        for shift in shifts:
+            factor = 1.0
+            for val in shift:
+                factor *= val.factor
+
+            res += factor * self._execute(shift)
+
+        return res * GEN_EIGENVAL**nmarg
+
+    def forward_pass(self, xarr, marginalize_over=None):
         """Forward pass of the variational observable.
         This entails a parameter shift rule shift around the parameters xarr
+        The number of dimension to derivate can be controlled via the nderivatives parameter
+        the value fo the "nderivatives" property will be used
         """
         y = self._upload_parameters(xarr)
+        eigenfactor = self._eigenfactor
+
+        if marginalize_over is not None:
+            # Remove dimension information from the variables we don't want to derivate
+            # i.e., all except the marginalized
+            for var in y:
+                if (var.dimension + 1) not in marginalize_over:
+                    var.dimension = -99
+
+            eigenfactor = GEN_EIGENVAL ** len(marginalize_over)
 
         if DERIVATIVE:
             shifts = _recursive_shifts([y], index=self.nderivatives)
@@ -241,7 +273,7 @@ Circuit summary:
 
             res += factor * self._execute(shift)
 
-        return self._eigenfactor * res
+        return eigenfactor * res
 
 
 class ReuploadingAnsatz(BaseVariationalObservable):
