@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 
 from matplotlib import pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 
 # put this in
@@ -34,25 +35,19 @@ parser.add_argument("--output_folder", help="Output folder where to read the dat
 
 # number of shots for each prediction
 parser.add_argument(
-        "--nshots_predictions",
-        help=f"Number of shots for evaluating predictions",
-        default=1000,
-        type=int,
-    )
+    "--nshots_predictions",
+    help=f"Number of shots for evaluating predictions",
+    default=1000,
+    type=int,
+)
 # number of predictions for each q value
 parser.add_argument(
-        "--n_predictions", 
-        help="Number of times we predict the integral", 
-        default=100, 
-        type=int
-    )
+    "--n_predictions", help="Number of times we predict the integral", default=100, type=int
+)
 # number of q points
 parser.add_argument(
-        "--n_points", 
-        help="Number of q points for which we predict the integral", 
-        default=100, 
-        type=int
-    )
+    "--n_points", help="Number of q points for which we predict the integral", default=100, type=int
+)
 
 args = parser.parse_args()
 
@@ -82,7 +77,6 @@ for qscaled in qscaled_points:
     errors.append(error)
 
 for exp in range(args.n_predictions):
-    print(f"Running prediction set number {exp+1}/{args.n_predictions}")
     for i, qscaled in enumerate(qscaled_points):
         # only the first experiment
         circuit_vals[exp][i] = get_primitive(qpdf, xmin, xmax, qscaled)
@@ -104,8 +98,7 @@ std_circuit_vals = np.std(circuit_vals, axis=0)
 mean_rr = np.mean(rr, axis=0)
 std_rr = np.std(rr, axis=0)
 
-plt.figure(figsize=(8,5))
-plt.title("Marginalization of the PDF integral")
+plt.figure(figsize=(8, 5))
 plt.grid(True)
 plt.subplots(2, 1, sharex=True)
 
@@ -113,26 +106,25 @@ plt.subplot(2, 1, 1)
 plt.plot(q2points, target_vals, color="blue", alpha=0.7, label="True result")
 plt.plot(q2points, mean_circuit_vals, color="red", alpha=0.7, label="Approximation")
 plt.fill_between(
-    q2points, 
-    mean_circuit_vals-std_circuit_vals, 
-    mean_circuit_vals+std_circuit_vals,
+    q2points,
+    mean_circuit_vals - std_circuit_vals,
+    mean_circuit_vals + std_circuit_vals,
     color="red",
-    alpha=0.3)
+    hatch="//",
+    alpha=0.15,
+)
 plt.ylabel(r"$\int_0^{1} xu(x, q) dx$")
 plt.legend()
 
 plt.subplot(2, 1, 2)
-plt.plot(q2points, mean_rr, color="black", alpha=0.7, label="Error")
+plt.plot(q2points, mean_rr, color="black", alpha=0.8, label="Error")
 plt.fill_between(
-    q2points,
-    mean_rr-std_rr,
-    mean_rr+std_rr,
-    color="black",
-    alpha=0.3
+    q2points, mean_rr - std_rr, mean_rr + std_rr, color="black", hatch="//", alpha=0.15
 )
 plt.ylabel("% error")
 plt.legend()
-
+plt.gca().yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
+plt.subplots_adjust(wspace=0, hspace=0)
 plt.xlabel(r"$Q^2$ (GeV$^2$)")
 
 plt.savefig("test.png")
