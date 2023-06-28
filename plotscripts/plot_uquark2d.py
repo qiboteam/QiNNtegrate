@@ -88,7 +88,7 @@ circuit_vals = np.array(circuit_vals)
 rr = np.zeros((args.n_predictions, args.n_points))
 
 for exp in range(args.n_predictions):
-    rr[exp] = relative_error(target_vals, circuit_vals[exp])
+    rr[exp] = np.abs(target_vals/circuit_vals[exp])
 
 # mean and std of the predictions
 mean_circuit_vals = np.mean(circuit_vals, axis=0)
@@ -117,11 +117,11 @@ plt.ylabel(r"$\int_0^{1} xu(x, q) dx$")
 plt.legend()
 
 plt.subplot(2, 1, 2)
-plt.plot(q2points, mean_rr, color="black", alpha=0.8, label="Error")
+plt.plot(q2points, mean_rr, color="black", alpha=0.8)
 plt.fill_between(
     q2points, mean_rr - std_rr, mean_rr + std_rr, color="black", hatch="//", alpha=0.15
 )
-plt.ylabel("% error")
+plt.ylabel("ratio")
 plt.legend()
 plt.gca().yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
 plt.subplots_adjust(wspace=0, hspace=0)

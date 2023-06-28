@@ -60,7 +60,7 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
 
     for d in range(target.ndim):
         xaxis_name = target.dimension_name(d)
-        xaxis_scale = target.dimension_scale(d)
+        xaxis_scale = "log" # target.dimension_scale(d)
         # Create a linear space in the dimension we are plotting
         xlin = np.linspace(xmin[d], xmax[d], npoints)
 
@@ -68,7 +68,7 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
             # change to log
             xlin = np.logspace(np.log10(xmin[d]), np.log10(xmax[d]), npoints)
 
-        for i in range(target.ndim // 2):
+        for i in range(target.ndim):
             # For every extra dimension do an extra plot so that we have more random points
             # in the other dimensions
 
@@ -95,11 +95,11 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
             else:
                 tag = f"n{i}"
 
-            plt.plot(xlin, ytrue, label=f"Target {tag}", linewidth=2.5, alpha=0.6, ls="-")
+            plt.plot(xlin, np.stack(ytrue), label=r"$u$-quark", linewidth=2.5, alpha=0.6, ls="-")
             plt.plot(
                 xlin,
                 ypred,
-                label=f"Simulation {tag}",
+                label=f"Circuit result",
                 linewidth=1.5,
                 alpha=0.7,
                 ls="-.",
@@ -109,10 +109,12 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
 
         plt.grid(True)
         plt.xscale(xaxis_scale)
-        plt.title(f"Integrand fit, dependence on {xaxis_name}")
+        #plt.title(f"Integrand fit, dependence on {xaxis_name}")
         plt.xlabel(rf"${xaxis_name}$")
         plt.ylabel(r"$f(\vec{x})$")
-        plt.savefig(output_folder / f"output_plot_d{d+1}.png")
+        plt.xlabel(r"x")
+        plt.ylabel(r"$xf(x)$")
+        plt.savefig(output_folder / f"output_plot_d{d+1}.pdf")
         plt.close()
 
 
@@ -264,7 +266,7 @@ if __name__ == "__main__":
     # Construct the target function
     target_fun = a_target(parameters=args.parameters, ndim=args.ndim)
     observable = generate_ansatz_pool(
-        args.ansatz,
+        a_ansatz,
         nqubits=args.nqubits,
         nlayers=args.layers,
         ndim=args.ndim,
