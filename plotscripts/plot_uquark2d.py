@@ -72,11 +72,16 @@ errors = []
 
 print("Evaluating targets")
 for qscaled in qscaled_points:
+    print(f"Integrating for q={qscaled}")
     res, error = updf.integral(xmin, xmax, qscaled, verbose=False, exact=True)
     target_vals.append(res)
     errors.append(error)
 
+print("Calculating predictions using qinntegrate procedure.")
+print(f"The final prediction is the mean over {args.n_predictions}.")
 for exp in range(args.n_predictions):
+    if exp%10==0:
+        print(f"Running experiment {exp+1}/{args.n_predictions}")
     for i, qscaled in enumerate(qscaled_points):
         # only the first experiment
         circuit_vals[exp][i] = get_primitive(qpdf, xmin, xmax, qscaled)
@@ -99,13 +104,12 @@ mean_rr = np.mean(rr, axis=0)
 std_rr = np.std(rr, axis=0)
 
 plt.figure(figsize=(8, 5))
-plt.grid(True)
-plt.subplots(2, 1, sharex=True)
 
-plt.subplot(2, 1, 1)
-plt.plot(q2points, target_vals, color="blue", alpha=0.7, label="True result")
-plt.plot(q2points, mean_circuit_vals, color="red", alpha=0.7, label="Approximation")
-plt.fill_between(
+fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 3]})
+
+ax1.plot(q2points, target_vals, color="black", alpha=0.7, label="Target result")
+ax1.plot(q2points, mean_circuit_vals, color="red", alpha=0.7, label="Approximation")
+ax1.fill_between(
     q2points,
     mean_circuit_vals - std_circuit_vals,
     mean_circuit_vals + std_circuit_vals,
@@ -113,18 +117,20 @@ plt.fill_between(
     hatch="//",
     alpha=0.15,
 )
-plt.ylabel(r"$\int_0^{1} xu(x, q) dx$")
-plt.legend()
+ax1.set_ylabel(r"$I_u(Q^2)$")
+ax1.yaxis.set_major_formatter(FormatStrFormatter("%.3f"))
 
-plt.subplot(2, 1, 2)
-plt.plot(q2points, mean_rr, color="black", alpha=0.8)
-plt.fill_between(
-    q2points, mean_rr - std_rr, mean_rr + std_rr, color="black", hatch="//", alpha=0.15
+
+ax2.plot(q2points, mean_rr, color="blue", alpha=0.7, label="Ratio values")
+ax2.fill_between(
+    q2points, mean_rr - std_rr, mean_rr + std_rr, color="blue", hatch="//", alpha=0.15
 )
-plt.ylabel("ratio")
-plt.legend()
-plt.gca().yaxis.set_major_formatter(FormatStrFormatter("%.2f"))
-plt.subplots_adjust(wspace=0, hspace=0)
-plt.xlabel(r"$Q^2$ (GeV$^2$)")
+ax2.hlines(1, np.min(q2points), np.max(q2points), lw=1.5, color='black')
+ax2.set_ylabel("Ratio")
+ax2.set_xlabel(r"$Q^2$ (GeV$^2$)")
+ax2.yaxis.set_major_formatter(FormatStrFormatter("%.3f"))
 
-plt.savefig("test.png")
+fig.subplots_adjust(wspace=0, hspace=0)
+fig.legend(bbox_to_anchor=(0.9, 0.88))
+
+fig.savefig("test.png")
