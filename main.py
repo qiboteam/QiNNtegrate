@@ -53,7 +53,7 @@ def valid_optimizer(val_raw):
     return valid_this(val_raw, available_optimizers, "Optimizer")
 
 
-def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
+def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=2):
     """Plot botht he predictor and the target"""
     xmin = np.array(xmin)
     xmax = np.array(xmax)
@@ -180,7 +180,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", help="Output folder", type=Path, default=None)
     parser.add_argument("-l", "--load", help="Load initial parameters from", type=Path)
     parser.add_argument(
-        "-j", "--jobs", help="Number of processes to utilize (default 4)", type=int, default=4
+        "-j", "--jobs", help="Number of processes to utilize (default 4)", type=int, default=1
     )
 
     target_parser = parser.add_argument_group("Target function")
@@ -264,16 +264,11 @@ if __name__ == "__main__":
     print(output_folder)
 
     # Construct the target function
+    print("Building the target function")
     target_fun = a_target(parameters=args.parameters, ndim=args.ndim)
-    observable = generate_ansatz_pool(
-        a_ansatz,
-        nqubits=args.nqubits,
-        nlayers=args.layers,
-        ndim=args.ndim,
-        nshots=args.nshots,
-        nprocesses=args.jobs,
-    )
-
+    print("Building the model")
+    observable = available_ansatz[args.ansatz](nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, nshots=args.nshots)
+    print("Model built")
     xmin = args.xmin
     xmax = args.xmax
 
