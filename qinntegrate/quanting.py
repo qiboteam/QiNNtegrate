@@ -7,9 +7,10 @@ import os
 import time
 
 import numpy as np
-from qibo import gates, hamiltonians, models, set_backend
+from qibo import gates, hamiltonians, models, set_backend, symbols
 
-set_backend("numpy")
+#set_backend("numpy")
+set_backend("qibolab", platform="iqm5q")
 
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
@@ -532,6 +533,57 @@ class qPDF_v2(qPDFAnsatz):
         self._variational_params = np.array(circuit.get_parameters()).flatten()
 
 
+class qPDF_iqm5q(qPDFAnsatz):
+    """Alternative version for the qPDF problem runnable on iqm5q device in TII lab."""
+
+    def __init__(self,  nlayers, nqubits=5, ndim=1, **kwargs):
+        """In this specific model we are going to use a 2 qubit circuit."""
+
+        # inheriting the BaseModel features
+        super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
+        
+        # we still need a 1 qubit observable
+        # on the calibrated qubit which is the zero-th one
+        self._nqubits = 5
+        self._ndim = 1
+        m0 = hamiltonians.Z(1).matrix
+        ham = hamiltonians.Hamiltonian(1, m0)
+        self._observable = ham
+
+    def build_circuit(self):
+        """Builds the reuploading ansatz for the circuit"""
+
+        circuit = models.Circuit(self._nqubits)
+
+        # then we add parametric gates
+        for i in range(self._nlayers):
+            circuit.add(gates.RY(q=0, theta=0))
+            idx = len(circuit.get_parameters()) - 1
+            self._reuploading_indexes[0].append(idx)
+            self._logarithm_variables.append(idx)
+            circuit.add(gates.RY(q=0, theta=0))
+
+            if self._ndim > 1:
+                # Add a gate for the second dimension
+                circuit.add(gates.RY(q=0, theta=0))
+                idx = len(circuit.get_parameters()) - 1
+                self._reuploading_indexes[1].append(idx)
+                self._logarithm_variables.append(idx)
+                circuit.add(gates.RY(q=0, theta=0))
+
+            if i != (self._nlayers - 1):
+                circuit.add(gates.RZ(q=0, theta=0))
+                self._reuploading_indexes[0].append(len(circuit.get_parameters()) - 1)
+                circuit.add(gates.RZ(q=0, theta=0))
+
+        # measurement gates
+        circuit.add((gates.M(0)))
+
+        self._circuit = circuit
+        # Get the initial parameters
+        self._variational_params = np.array(circuit.get_parameters()).flatten()
+
+
 class GoodScaling(BaseVariationalObservable):
     """In this ansatz we upload 2 variables per qubit."""
 
@@ -585,6 +637,7 @@ available_ansatz = {
     "verticup": VerticalUploading,
     "qpdf": qPDFAnsatz,
     "qpdf2q": qPDF_v2,
+    "qpdf_iqm5q": qPDF_iqm5q,
     "goodscaling": GoodScaling,
 }
 
