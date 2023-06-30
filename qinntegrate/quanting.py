@@ -14,6 +14,7 @@ set_backend("numpy")
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
 DERIVATIVE = True
+ALPHA = 1.0 - 0.08
 
 
 def _recursive_shifts(arrays, index=1, s=SHIFT):
@@ -217,14 +218,15 @@ Circuit summary:
         self._circuit.set_parameters(circ_parameters)
         # exact simulation if nshots is None
         if self._nshots is None:
-            state = self._backend_exe(circuit=self._circuit, initial_state=self._initial_state).state()
+            state = self._backend_exe(
+                circuit=self._circuit, initial_state=self._initial_state
+            ).state()
             expectation_value = self._observable.expectation(state)
         # shot-noise simulation otherwise
         else:
             expectation_value = self._backend_exe(
-                circuit=self._circuit, 
-                initial_state=self._initial_state, 
-                nshots=self._nshots).expectation_from_samples(self._observable)
+                circuit=self._circuit, initial_state=self._initial_state, nshots=self._nshots
+            ).expectation_from_samples(self._observable)
             expectation_value = np.real(expectation_value)
         return expectation_value * self._scaling
 
@@ -473,12 +475,12 @@ class qPDFAnsatz(BaseVariationalObservable):
 
     def execute_with_x(self, xarr):
         ret = super().execute_with_x(xarr)
-        return xarr[0] * ret
+        return xarr[0] ** ALPHA * ret
 
     def forward_pass(self, xarr):
         circ = super().execute_with_x(xarr)
         der = super().forward_pass(xarr)
-        return xarr[0] * der + circ
+        return xarr[0] ** ALPHA * der + ALPHA * circ * xarr[0] ** (ALPHA - 1.0)
 
 
 class qPDF_v2(qPDFAnsatz):
@@ -590,7 +592,9 @@ available_ansatz = {
 #### Pooling management
 def initialize_pool(observable_class, nqubits, nlayers, ndim, nshots):
     global my_ansatz
-    my_ansatz = observable_class(nqubits=nqubits, nlayers=nlayers, ndim=ndim, nshots=nshots, verbose=False)
+    my_ansatz = observable_class(
+        nqubits=nqubits, nlayers=nlayers, ndim=ndim, nshots=nshots, verbose=False
+    )
 
 
 def worker_set_parameters(parameters, running_pool):

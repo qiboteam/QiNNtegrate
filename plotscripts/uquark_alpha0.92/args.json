@@ -1,0 +1,24 @@
+{
+ "xmin": [
+  0.0001
+ ],
+ "xmax": [
+  0.7
+ ],
+ "jobs": 32,
+ "target": "uquark",
+ "parameters": [],
+ "ndim": 1,
+ "ansatz": "qpdf",
+ "nqubits": 1,
+ "layers": 4,
+ "nshots": null,
+ "maxiter": 340,
+ "npoints": 500,
+ "padding": false,
+ "absolute": false,
+ "optimizer": "lbfgs",
+ "nruns": 1,
+ "FinalResult": 0.3238247138595213,
+ "TargetResult": 0.32383631466979923
+}
