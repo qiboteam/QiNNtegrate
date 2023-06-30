@@ -9,8 +9,6 @@ import time
 import numpy as np
 from qibo import gates, hamiltonians, models, set_backend, symbols
 
-#set_backend("numpy")
-set_backend("qibolab", platform="iqm5q")
 
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
@@ -100,6 +98,10 @@ class BaseVariationalObservable:
     """
 
     def __init__(self, nqubits=3, nlayers=3, ndim=1, nshots=None, initial_state=None, verbose=True):
+
+        # set qibolab backend since we run on hardware
+        set_backend("qibolab", platform="iqm5q")
+
         self._ndim = ndim
         self._nqubits = nqubits
         self._nlayers = nlayers

@@ -184,7 +184,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", help="Output folder", type=Path, default=None)
     parser.add_argument("-l", "--load", help="Load initial parameters from", type=Path)
     parser.add_argument(
-        "-j", "--jobs", help="Number of processes to utilize (default 4)", type=int, default=1
+        "-j", "--jobs", help="Number of processes to utilize (default 1)", type=int, default=1
     )
 
     target_parser = parser.add_argument_group("Target function")
