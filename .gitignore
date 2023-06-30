@@ -137,3 +137,4 @@ outcmaes/
 # data returned by the script
 *.npy
 args.json
+*.png

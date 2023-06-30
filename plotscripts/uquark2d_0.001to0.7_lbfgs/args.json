@@ -1,0 +1,24 @@
+{
+ "xmin": [
+  0.001,
+  0
+ ],
+ "xmax": [
+  0.7,
+  1
+ ],
+ "jobs": 42,
+ "target": "xu(x)",
+ "parameters": [],
+ "ndim": 2,
+ "ansatz": "<qinntegrate.quanting.ObservablePool object at 0x7f54e319ebc0>",
+ "nqubits": 1,
+ "layers": 4,
+ "maxiter": 100,
+ "npoints": 500,
+ "padding": false,
+ "absolute": true,
+ "optimizer": "<class 'qinntegrate.optimization.LBFGS'>",
+ "FinalResult": 0.21084694410083965,
+ "TargetResult": 0.21092068016207033
+}
