@@ -646,6 +646,8 @@ class ObservablePool:
         [i.get() for i in pids]
 
     def vectorized_forward_pass(self, all_xarr):
+        if self._nprocesses == 1:
+            return np.array([self.forward_pass(i) for i in all_xarr])
         return np.array(self._pool.map(worker_forward_pass, all_xarr))
 
     # The rest are passed silently to the original ansatz
