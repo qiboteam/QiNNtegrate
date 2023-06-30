@@ -58,11 +58,11 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
     xmin = np.array(xmin)
     xmax = np.array(xmax)
 
-    #plt.figure(figsize=(8,5))
+    # plt.figure(figsize=(8,5))
 
     for d in range(target.ndim):
         xaxis_name = target.dimension_name(d)
-        xaxis_scale = "log" # target.dimension_scale(d)
+        xaxis_scale = "log"  # target.dimension_scale(d)
         # Create a linear space in the dimension we are plotting
         xlin = np.linspace(xmin[d], xmax[d], npoints)
 
@@ -98,21 +98,23 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
                 tag = f"n{i}"
 
             plt.plot(
-                xlin,
-                ypred,
-                label=f"Approximation",
-                linewidth=2.5,
-                alpha=0.6,
-                ls="-",
-                color="red"
+                xlin, ypred, label=f"Approximation", linewidth=2.5, alpha=0.6, ls="-", color="red"
             )
-            plt.plot(xlin, np.stack(ytrue), label=r"Target $u$-quark", linewidth=1.5, alpha=0.8, ls="--", color='black')
+            plt.plot(
+                xlin,
+                np.stack(ytrue),
+                label=r"Target $u$-quark",
+                linewidth=1.5,
+                alpha=0.8,
+                ls="--",
+                color="black",
+            )
 
         plt.legend()
 
         plt.grid(True)
         plt.xscale(xaxis_scale)
-        #plt.title(f"Integrand fit, dependence on {xaxis_name}")
+        # plt.title(f"Integrand fit, dependence on {xaxis_name}")
         plt.xlabel(rf"${xaxis_name}$")
         plt.xlabel(r"x")
         plt.ylabel(r"$u\,f(x)$")

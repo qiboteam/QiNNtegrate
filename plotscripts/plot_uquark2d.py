@@ -80,7 +80,7 @@ for qscaled in qscaled_points:
 print("Calculating predictions using qinntegrate procedure.")
 print(f"The final prediction is the mean over {args.n_predictions}.")
 for exp in range(args.n_predictions):
-    if exp%10==0:
+    if exp % 10 == 0:
         print(f"Running experiment {exp+1}/{args.n_predictions}")
     for i, qscaled in enumerate(qscaled_points):
         # only the first experiment
@@ -93,7 +93,7 @@ circuit_vals = np.array(circuit_vals)
 rr = np.zeros((args.n_predictions, args.n_points))
 
 for exp in range(args.n_predictions):
-    rr[exp] = np.abs(target_vals/circuit_vals[exp])
+    rr[exp] = np.abs(target_vals / circuit_vals[exp])
 
 # mean and std of the predictions
 mean_circuit_vals = np.mean(circuit_vals, axis=0)
@@ -105,7 +105,7 @@ std_rr = np.std(rr, axis=0)
 
 plt.figure(figsize=(8, 5))
 
-fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={'height_ratios': [5, 3]})
+fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={"height_ratios": [5, 3]})
 
 ax1.plot(q2points, target_vals, color="black", alpha=0.7, label="Target result")
 ax1.plot(q2points, mean_circuit_vals, color="red", alpha=0.7, label="Approximation")
@@ -122,10 +122,8 @@ ax1.yaxis.set_major_formatter(FormatStrFormatter("%.3f"))
 
 
 ax2.plot(q2points, mean_rr, color="blue", alpha=0.7, label="Ratio values")
-ax2.fill_between(
-    q2points, mean_rr - std_rr, mean_rr + std_rr, color="blue", hatch="//", alpha=0.15
-)
-ax2.hlines(1, np.min(q2points), np.max(q2points), lw=1.5, color='black')
+ax2.fill_between(q2points, mean_rr - std_rr, mean_rr + std_rr, color="blue", hatch="//", alpha=0.15)
+ax2.hlines(1, np.min(q2points), np.max(q2points), lw=1.5, color="black")
 ax2.set_ylabel("Ratio")
 ax2.set_xlabel(r"$Q^2$ (GeV$^2$)")
 ax2.yaxis.set_major_formatter(FormatStrFormatter("%.3f"))
