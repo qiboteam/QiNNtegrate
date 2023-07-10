@@ -7,7 +7,10 @@ import os
 import time
 
 import numpy as np
+from uniplot import plot
+
 from qibo import gates, hamiltonians, models, set_backend, symbols
+from qibo.models import error_mitigation
 
 
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
@@ -97,10 +100,11 @@ class BaseVariationalObservable:
     In this case the inputs of the function are injected in the `ndim` first parameters.
     """
 
-    def __init__(self, nqubits=3, nlayers=3, ndim=1, nshots=None, initial_state=None, verbose=True):
+    def __init__(self, nqubits=3, nlayers=3, ndim=1, nshots=None, initial_state=None, verbose=True, mitigation=False):
 
         # set qibolab backend since we run on hardware
         set_backend("qibolab", platform="iqm5q")
+        #set_backend("numpy")
 
         self._ndim = ndim
         self._nqubits = nqubits
@@ -110,6 +114,7 @@ class BaseVariationalObservable:
         self._observable = None
         self._variational_params = []
         self._initial_state = initial_state
+        self._mitigation = mitigation
         self.nderivatives = ndim  # By default, derive all dimensions
         self.pid = os.getpid()  # Useful information when multiprocessing
 
@@ -125,6 +130,36 @@ class BaseVariationalObservable:
 
         # Note that the total number of parameters in the circuit is the variational paramters + scaling
         self._nparams = len(self._circuit.get_parameters()) + 1
+
+        # getting CDR mitigation parameters
+        if self._mitigation:
+            # and calculating calibration matrix
+            # for one qubit because on hardware we use 1 qubit
+            self._calibration_matrix = error_mitigation.calibration_matrix(
+                nqubits=1,
+                noise_model=None,
+                nshots=self._nshots,
+                backend=self._observable.backend
+            )
+            # mean over M parameter sets
+            M = 5
+            cdr_params = np.zeros((M, 2))
+            train_vals = {}
+            for i in range(M):
+                self._circuit.set_parameters(np.random.randn(self._nparams-1))
+                _, _, cdr_params[i], train_vals = error_mitigation.CDR(
+                    circuit = self._circuit,
+                    observable=self._observable,
+                    n_training_samples=10,
+                    backend=self._observable.backend,
+                    noise_model=None,
+                    nshots=self._nshots,
+                    full_output=True)
+            self._cdr_best_params = np.mean(np.asarray(cdr_params), axis=0)
+            print(f"Estimated Clifford Data Linear Regression parameters: {self._cdr_best_params}")
+            plot(np.real(train_vals['noisy']), np.real(train_vals['noise-free']))
+            
+
         # fixing the seed for reproducibility
         np.random.seed(1234)
         self._variational_params = np.random.randn(self._nparams - 1)
@@ -231,6 +266,8 @@ Circuit summary:
                 circuit=self._circuit, initial_state=self._initial_state, nshots=self._nshots
             ).expectation_from_samples(self._observable)
             expectation_value = np.real(expectation_value)
+            if self._mitigation:
+                expectation_value = self._cdr_best_params[1] + self._cdr_best_params[0] * expectation_value
         return expectation_value * self._scaling
 
     @property
@@ -538,7 +575,7 @@ class qPDF_v2(qPDFAnsatz):
 class qPDF_iqm5q(qPDFAnsatz):
     """Alternative version for the qPDF problem runnable on iqm5q device in TII lab."""
 
-    def __init__(self,  nlayers, nqubits=5, ndim=1, **kwargs):
+    def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
         """In this specific model we are going to use a 2 qubit circuit."""
 
         # inheriting the BaseModel features
@@ -547,7 +584,6 @@ class qPDF_iqm5q(qPDFAnsatz):
         # we still need a 1 qubit observable
         # on the calibrated qubit which is the zero-th one
         self._nqubits = 5
-        self._ndim = 1
         m0 = hamiltonians.Z(1).matrix
         ham = hamiltonians.Hamiltonian(1, m0)
         self._observable = ham
@@ -557,21 +593,30 @@ class qPDF_iqm5q(qPDFAnsatz):
 
         circuit = models.Circuit(self._nqubits)
 
+        def add_decomposed_ry(circuit, q):
+            circuit.add([
+                gates.RX(q=q, theta=np.pi/2, trainable=False),
+                gates.RZ(q=q, theta=0),
+                gates.RZ(q=q, theta=np.pi, trainable=False),
+                gates.RX(q=q, theta=np.pi/2, trainable=False),
+                gates.RZ(q=q, theta=np.pi, trainable=False)
+            ])
+
         # then we add parametric gates
         for i in range(self._nlayers):
-            circuit.add(gates.RY(q=0, theta=0))
+            add_decomposed_ry(circuit=circuit, q=0)
             idx = len(circuit.get_parameters()) - 1
             self._reuploading_indexes[0].append(idx)
             self._logarithm_variables.append(idx)
-            circuit.add(gates.RY(q=0, theta=0))
+            add_decomposed_ry(circuit=circuit, q=0)
 
             if self._ndim > 1:
                 # Add a gate for the second dimension
-                circuit.add(gates.RY(q=0, theta=0))
+                add_decomposed_ry(circuit=circuit, q=0)
                 idx = len(circuit.get_parameters()) - 1
                 self._reuploading_indexes[1].append(idx)
                 self._logarithm_variables.append(idx)
-                circuit.add(gates.RY(q=0, theta=0))
+                add_decomposed_ry(circuit=circuit, q=0)
 
             if i != (self._nlayers - 1):
                 circuit.add(gates.RZ(q=0, theta=0))
@@ -671,10 +716,13 @@ def worker_get_ansatz(_):
 
 
 class ObservablePool:
-    def __init__(self, pool):
+    def __init__(self, pool, obs=None):
         self._pool = pool
         self._nprocesses = pool._processes
-        self._ansatz = pool.map(worker_get_ansatz, [None])[0]
+        if obs is None:
+            self._ansatz = pool.map(worker_get_ansatz, [None])[0]
+        else:
+            self._ansatz = obs
         self._ansatz.print_model()
         self._ret = []
         self._manager = Manager()
@@ -687,18 +735,19 @@ class ObservablePool:
         # Make sure that the main process ansatz has the right parameters
         self._ansatz.set_parameters(parameters)
 
-        # Now prepare a list with locks
-        for _ in range(self._nprocesses):
-            self._shr.append(None)
+        if self._nprocesses!= 1:
+            # Now prepare a list with locks
+            for _ in range(self._nprocesses):
+                self._shr.append(None)
 
-        # Send the parameter set as async calls
-        pids = [
-            self._pool.apply_async(worker_set_parameters, args=(parameters, self._shr))
-            for _ in range(self._nprocesses)
-        ]
+            # Send the parameter set as async calls
+            pids = [
+                self._pool.apply_async(worker_set_parameters, args=(parameters, self._shr))
+                for _ in range(self._nprocesses)
+            ]
 
-        # And wait until all threads are done before continuing
-        [i.get() for i in pids]
+            # And wait until all threads are done before continuing
+            [i.get() for i in pids]
 
     def vectorized_forward_pass(self, all_xarr):
         if self._nprocesses == 1:
@@ -727,12 +776,16 @@ class ObservablePool:
         self._pool.terminate()
 
 
-def generate_ansatz_pool(observable_class, nshots=None, nqubits=1, nlayers=1, ndim=1, nprocesses=1):
+def generate_ansatz_pool(observable_class, nshots=None, nqubits=1, nlayers=1, ndim=1, nprocesses=1, mitigation=False):
     """Generate a pool of ansatz"""
+    obs = None
+    if nprocesses == 1:
+        obs = observable_class(nqubits, nlayers, ndim=ndim, nshots=nshots, mitigation=mitigation)
+
     pool = Pool(
         processes=nprocesses,
         initializer=initialize_pool,
         initargs=(observable_class, nqubits, nlayers, ndim, nshots),
     )
 
-    return ObservablePool(pool)
+    return ObservablePool(pool, obs=obs)

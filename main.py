@@ -53,7 +53,7 @@ def valid_optimizer(val_raw):
     return valid_this(val_raw, available_optimizers, "Optimizer")
 
 
-def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=2):
+def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=5):
     """Plot botht he predictor and the target"""
     xmin = np.array(xmin)
     xmax = np.array(xmax)
@@ -215,6 +215,12 @@ if __name__ == "__main__":
     )
     circ_parser.add_argument("--layers", help="Number of layers for the VQE", default=2, type=int)
     circ_parser.add_argument("--nshots", help="Number of shots for each < Z > evaluation", type=int)
+    circ_parser.add_argument(
+        "--mitigation", 
+        help="Set to true if CDR error mitigation is required", 
+        default=False, 
+        type=bool
+    )
 
     opt_parser = parser.add_argument_group("Optimization definition")
     opt_parser.add_argument(
@@ -271,7 +277,17 @@ if __name__ == "__main__":
     print("Building the target function")
     target_fun = a_target(parameters=args.parameters, ndim=args.ndim)
     print("Building the model")
-    observable = available_ansatz[args.ansatz](nqubits=args.nqubits, nlayers=args.layers, ndim=args.ndim, nshots=args.nshots)
+
+    observable = generate_ansatz_pool(
+        a_ansatz,
+        nqubits=args.nqubits,
+        nlayers=args.layers,
+        ndim=args.ndim,
+        nshots=args.nshots,
+        nprocesses=args.jobs,
+        mitigation=args.mitigation
+    )
+
     print("Model built")
     xmin = args.xmin
     xmax = args.xmax
