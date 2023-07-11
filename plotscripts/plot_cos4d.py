@@ -111,14 +111,14 @@ plt.plot(xlin, circuit_vals, alpha=0.6, label="Approximation", color="red", line
 plt.plot(xlin, target_vals, alpha=0.8, label="Target result", color="black", linewidth=1.5, ls="-.")
 plt.ylabel(rf"$G(x_{dim_marg})$")
 plt.legend()
-plt.grid(True)
+#plt.grid(True)
 
 plt.subplot(2, 1, 2)
 rr = relative_error(target_vals, circuit_vals)
 plt.plot(xlin, rr, color="blue", alpha=0.7, lw=2.5, label="Error")
 plt.ylabel("% error")
 # plt.legend()
-plt.grid(True)
+#plt.grid(True)
 plt.subplots_adjust(wspace=0, hspace=0)
 plt.xlabel(rf"$x_{dim_marg}$")
 

@@ -127,9 +127,9 @@ ax2.hlines(1, np.min(q2points), np.max(q2points), lw=1.5, color="black")
 ax2.set_ylabel("Ratio")
 ax2.set_xlabel(r"$Q^2$ (GeV$^2$)")
 ax2.yaxis.set_major_formatter(FormatStrFormatter("%.3f"))
-
 fig.subplots_adjust(wspace=0, hspace=0)
 fig.legend(bbox_to_anchor=(0.9, 0.88))
+
 
 fig.savefig("uquark2d.png")
 fig.savefig("uquark2d.pdf")

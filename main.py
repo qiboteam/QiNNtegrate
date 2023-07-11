@@ -18,6 +18,8 @@ TARGETS = list(available_targets.keys())
 ANSATZS = list(available_ansatz.keys())
 OPTIMIZ = list(available_optimizers.keys())
 
+def relative_error(x, y):
+    return 100 * np.abs(x - y) / np.abs(x)
 
 def check_qbits(var):
     nqbit = int(var)
@@ -97,6 +99,9 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
             else:
                 tag = f"n{i}"
 
+            plt.subplots(2, 1, sharex=True, gridspec_kw={"height_ratios": [5, 2]})
+            plt.grid(True)
+            plt.subplot(2,1,1)
             plt.plot(
                 xlin, ypred, label=f"Approximation", linewidth=2.5, alpha=0.6, ls="-", color="red"
             )
@@ -109,15 +114,24 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
                 ls="--",
                 color="black",
             )
+            plt.ylabel(r"$u\,f(x)$")
+            plt.grid(True)
+            plt.legend()
 
-        plt.legend()
+            plt.subplot(2,1,2)
+            rr = relative_error(np.stack(ytrue), ypred)
+            plt.plot(xlin, rr, color="blue", alpha=0.7, lw=2.5, label="Error")
+            plt.ylabel("% error")
+            #plt.legend()
+            plt.subplots_adjust(wspace=0, hspace=0)
+            plt.xlabel(rf"$x$")
+            plt.ylabel('% error')
+            plt.ylim(0, 1.5)
 
-        plt.grid(True)
+
         plt.xscale(xaxis_scale)
         # plt.title(f"Integrand fit, dependence on {xaxis_name}")
         plt.xlabel(rf"${xaxis_name}$")
-        plt.xlabel(r"x")
-        plt.ylabel(r"$u\,f(x)$")
         plt.savefig(output_folder / f"output_plot_d{d+1}.pdf")
         plt.close()
 
