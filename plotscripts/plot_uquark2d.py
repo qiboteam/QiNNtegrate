@@ -130,6 +130,7 @@ ax2.yaxis.set_major_formatter(FormatStrFormatter("%.3f"))
 
 fig.subplots_adjust(wspace=0, hspace=0)
 fig.legend(bbox_to_anchor=(0.9, 0.88))
+fig.suptitle(r"Estimates of $I_u(Q^2)$")
 
 fig.savefig("uquark2d.png")
 fig.savefig("uquark2d.pdf")
