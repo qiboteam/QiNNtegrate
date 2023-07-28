@@ -64,7 +64,7 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
 
     for d in range(target.ndim):
         xaxis_name = target.dimension_name(d)
-        xaxis_scale = "log"  # target.dimension_scale(d)
+        xaxis_scale = "linear"  # target.dimension_scale(d)
         # Create a linear space in the dimension we are plotting
         xlin = np.linspace(xmin[d], xmax[d], npoints)
 
@@ -124,14 +124,16 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
             plt.ylabel("% error")
             #plt.legend()
             plt.subplots_adjust(wspace=0, hspace=0)
-            plt.xlabel(rf"$x$")
+            plt.xlabel(r"$x$")
             plt.ylabel('% error')
             plt.ylim(0, 1.5)
+
+            plt.suptitle(r"$u$ quark PDF fit")
 
 
         plt.xscale(xaxis_scale)
         # plt.title(f"Integrand fit, dependence on {xaxis_name}")
-        plt.xlabel(rf"${xaxis_name}$")
+        #plt.xlabel(rf"${xaxis_name}$")
         plt.savefig(output_folder / f"output_plot_d{d+1}.pdf")
         plt.close()
 
