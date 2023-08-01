@@ -20,7 +20,7 @@ try:
 except ModuleNotFoundError:
 
     def mkPDF(*args, **kwargs):
-        raise ModuleNotFoundError("Please install `pdfflow`, `pip install pdfflow`")
+        raise ModuleNotFoundError("Please install `pdfflow`: `pip install pdfflow`")
 
 
 class TargetFunction:
@@ -43,7 +43,7 @@ class TargetFunction:
             raise ValueError(f"This target function accepts a maximum of {self.max_par} parameters")
         if ndim > self.max_ndim:
             raise ValueError(
-                f"This target function accepts a maximum of {self.max_ndim} to integrate"
+                f"This target function accepts a maximum of {self.max_ndim} dimensions to integrate"
             )
         print(f"Preparing {self} with d={self.ndim}")
 
@@ -89,7 +89,11 @@ class TargetFunction:
 
     @property
     def xgrid(self):
-        pass
+        return None
+
+    @property
+    def nderivatives(self):
+        return self.ndim
 
 
 class Sin1d(TargetFunction):
@@ -133,6 +137,78 @@ class Cosnd(TargetFunction):
 
     def __repr__(self):
         return f"cos{self.ndim}d"
+
+
+class CosndAlpha(TargetFunction):
+    """Similar to Cosnd but with only two parameters available a1 and a2 which cannot be given
+        cos(a1*x2 + a2*x2 + x3 + ... +xn)
+    the code is prepared so that both a1 and a2 are parameters to be trained upon
+
+    The minimum number of dimensions is 2 (a1 and x1)
+    if 4 or more dimensions are selected then a2 will also be considered. No more parameters are considered.
+
+    The training ranges are fixed to be between 0 and 3.5
+    alpha instead is trainged between 0 and 10
+    """
+
+    max_par = 0
+    override = True
+
+    def build(self):
+        if self.ndim < 2:
+            raise ValueError("This target needs at least two dimensions: a1, x1")
+
+        if self.ndim == 2:
+            self._npar = 1
+
+        if self.ndim > 3:
+            self._npar = 2
+
+        self._nx = self.ndim - self._npar
+        self._parameters = np.ones((self._nx,))
+
+    def __call__(self, xarr):
+        par = self._parameters.tolist()
+        par[: self._npar] = xarr[-self._npar :]
+        arg = np.sum(np.array(par) * np.array(xarr[: self._nx]))
+        return np.cos(xarr[0] * xarr[1])
+
+    def integral(
+        self, xmin, xmax, a1=None, a2=None, verbose=False, exact=True, marginalized_vars=None
+    ):
+        if marginalized_vars is not None:
+            raise NotImplementedError("For Cosndalpha")
+
+        if a1 is None:
+            a1 = self.xmax[-self._npar]
+        if a2 is None:
+            a2 = self.xmax[-1]
+
+        # Take only the x-part of the integration limits
+        xmin = xmin[: self._nx]
+        xmax = xmax[: self._nx]
+        ranges = list(zip(xmin, xmax))
+
+        if self.ndim == 2:
+            extra = [a1]
+        elif self.ndim > 3:
+            extra = [a1, a2]
+
+        fun = lambda *x: self(list(x) + extra)
+
+        return nquad(fun, ranges)
+
+    @property
+    def xmin(self):
+        return [1.0] * self._nx + [1.0] * self._npar
+
+    @property
+    def xmax(self):
+        return [3.5] * self._nx + [5.0] * self._npar
+
+    @property
+    def nderivatives(self):
+        return self._nx
 
 
 class Sind(Cosnd):
@@ -315,4 +391,5 @@ available_targets = {
     "lepage": LepageTest,
     "uquark": UquarkPDF,
     "uquark2d": UquarkPDF2d,
+    "cosndalpha": CosndAlpha,
 }

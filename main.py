@@ -53,7 +53,7 @@ def valid_optimizer(val_raw):
     return valid_this(val_raw, available_optimizers, "Optimizer")
 
 
-def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
+def plot_uquark(predictor, target, xmin, xmax, output_folder, npoints=50):
     """Plot botht he predictor and the target"""
     xmin = np.array(xmin)
     xmax = np.array(xmax)
@@ -108,6 +108,84 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
                 alpha=0.8,
                 ls="--",
                 color="black",
+            )
+
+        plt.legend()
+
+        plt.grid(True)
+        plt.xscale(xaxis_scale)
+        # plt.title(f"Integrand fit, dependence on {xaxis_name}")
+        plt.xlabel(rf"${xaxis_name}$")
+        plt.xlabel(r"x")
+        plt.ylabel(r"$u\,f(x)$")
+        plt.savefig(output_folder / f"output_plot_d{d+1}.pdf")
+        plt.close()
+
+
+def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
+    if "quark" in str(target):
+        return plot_uquark(predictor, target, xmin, xmax, output_folder, npoints=50)
+
+    xmin = np.array(xmin)
+    xmax = np.array(xmax)
+    colors = iter(plt.rcParams["axes.prop_cycle"].by_key()["color"])
+
+    for d in range(target.ndim):
+        xaxis_name = target.dimension_name(d)
+        xaxis_scale = target.dimension_scale(d)
+        # Create a linear space in the dimension we are plotting
+        xlin = np.linspace(xmin[d], xmax[d], npoints)
+
+        if xaxis_scale == "log":
+            # change to log
+            xlin = np.logspace(np.log10(xmin[d]), np.log10(xmax[d]), npoints)
+
+        for i in range(target.ndim):
+            # For every extra dimension do an extra plot so that we have more random points
+            # in the other dimensions
+
+            # Select a random point in the other dimensions
+            xran_origin = np.random.rand(target.ndim) * (xmax - xmin) + xmin
+
+            ytrue = []
+            all_xs = []
+
+            for xx in xlin:
+                xran = copy.deepcopy(xran_origin)
+                xran[d] = xx
+                ytrue.append(target(xran))
+                all_xs.append(xran)
+
+            ypred = predictor.vectorized_forward_pass(all_xs)
+
+            if target.ndim == 2:
+                # when there is only 2 dimensions only one variable is fixed
+                # and so we can actually write the numerical value
+                other_d = (d + 1) % 2
+                fixed_name = target.dimension_name(other_d)
+                tag = f"{fixed_name}={xran[other_d]:.2}"
+            else:
+                tag = f"n={i}"
+
+            color = next(colors)
+
+            plt.plot(
+                xlin,
+                ypred,
+                label=f"Approximation {tag}",
+                linewidth=2.5,
+                alpha=0.6,
+                ls="-",
+                color=color,
+            )
+            plt.plot(
+                xlin,
+                np.stack(ytrue),
+                label=f"Target {tag}",
+                linewidth=1.5,
+                alpha=0.8,
+                ls="--",
+                color=color,
             )
 
         plt.legend()
@@ -276,6 +354,7 @@ if __name__ == "__main__":
         ndim=args.ndim,
         nshots=args.nshots,
         nprocesses=args.jobs,
+        nderivatives=target_fun.nderivatives,
     )
 
     xmin = args.xmin
@@ -301,7 +380,10 @@ if __name__ == "__main__":
     if target_fun.override:
         xmin = target_fun.xmin
         xmax = target_fun.xmax
-        xarr = np.array(target_fun.xgrid).reshape(-1, target_fun.ndim)
+        if target_fun.xgrid is None:
+            xarr = _generate_integration_x(xmin, xmax, padding=args.padding)
+        else:
+            xarr = np.array(target_fun.xgrid).reshape(-1, target_fun.ndim)
 
     print(f" > Using {xmin} as lower limit of the integral")
     print(f" > Using {xmax} as upper limit of the integral")
@@ -336,21 +418,22 @@ if __name__ == "__main__":
 
         # And... integrate!
         res = 0.0
+        print(limits)
         for int_limit, sign in zip(limits, signs):
             res += sign * observable.execute_with_x(int_limit)
 
         simulation_results[i] = res
-        print(f"Result obtained with experiment {i+1}/{args.nruns}: {res:.4}")
+        print(f"Result for exp {i+1}/{args.nruns}: {res:.4}", end="\r")
 
     # mean and std over the simulation results
     results_mean = np.mean(np.asarray(simulation_results))
     results_std = np.std(np.asarray(simulation_results))
+    print(f"Average trained result is {results_mean:.4} +- {results_std:.4}")
 
     # print theoretical results
     target_result, err = target_fun.integral(xmin, xmax)
     print(f"The target result for the integral of [{target_fun}] is {target_result:.4} +- {err:.4}")
 
-    print(f"Average trained result is {results_mean:.4} +- {results_std:.4}")
     plot_integrand(observable, target_fun, xmin, xmax, output_folder)
 
     print(f"Saving results to {output_folder}\n")
