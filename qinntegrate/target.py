@@ -141,7 +141,7 @@ class Cosnd(TargetFunction):
 
 class CosndAlpha(TargetFunction):
     """Similar to Cosnd but with only two parameters available a1 and a2 which cannot be given
-        cos(a1*x2 + a2*x2 + x3 + ... +xn)
+        cos(a2*x1 + x2 + ... + xn + a1)
     the code is prepared so that both a1 and a2 are parameters to be trained upon
 
     The minimum number of dimensions is 2 (a1 and x1)
@@ -165,13 +165,14 @@ class CosndAlpha(TargetFunction):
             self._npar = 2
 
         self._nx = self.ndim - self._npar
-        self._parameters = np.ones((self._nx,))
 
     def __call__(self, xarr):
-        par = self._parameters.tolist()
-        par[: self._npar] = xarr[-self._npar :]
-        arg = np.sum(np.array(par) * np.array(xarr[: self._nx]))
-        return np.cos(xarr[0] * xarr[1])
+        a1 = xarr[-1]
+        a2 = 1.0 if self._npar == 1 else xarr[-2]
+        x1 = xarr[0]
+
+        arg = x1*a2 + np.sum(xarr[1:self._nx]) + a1
+        return np.cos(arg)
 
     def integral(
         self, xmin, xmax, a1=None, a2=None, verbose=False, exact=True, marginalized_vars=None
@@ -200,11 +201,21 @@ class CosndAlpha(TargetFunction):
 
     @property
     def xmin(self):
-        return [1.0] * self._nx + [1.0] * self._npar
+        if self._npar == 1:
+            extra = [0.0]
+        elif self._npar == 2:
+            extra = [-0.5, 0.0]
+
+        return [0.0] * self._nx + extra
 
     @property
     def xmax(self):
-        return [3.5] * self._nx + [5.0] * self._npar
+        if self._npar == 1:
+            extra = [5.0]
+        elif self._npar == 2:
+            extra = [0.5, 5.0]
+
+        return [3.5] * self._nx + extra
 
     @property
     def nderivatives(self):
