@@ -128,7 +128,6 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
 
     xmin = np.array(xmin)
     xmax = np.array(xmax)
-    colors = iter(plt.rcParams["axes.prop_cycle"].by_key()["color"])
 
     for d in range(target.ndim):
         xaxis_name = target.dimension_name(d)
@@ -167,7 +166,7 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
             else:
                 tag = f"n={i}"
 
-            color = next(colors)
+            color = plt.rcParams["axes.prop_cycle"].by_key()["color"][i]
 
             plt.plot(
                 xlin,
@@ -187,8 +186,6 @@ def plot_integrand(predictor, target, xmin, xmax, output_folder, npoints=50):
                 ls="--",
                 color=color,
             )
-
-        plt.legend()
 
         plt.grid(True)
         plt.xscale(xaxis_scale)
@@ -452,3 +449,6 @@ if __name__ == "__main__":
     opts["FinalResult"] = res
     opts["TargetResult"] = target_result
     json.dump(opts, arg_path.open("w", encoding="utf-8"), indent=True)
+
+    # Force close the pool in case (tensorflow?) is leaving it open
+    del observable

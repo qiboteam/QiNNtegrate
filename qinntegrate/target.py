@@ -181,9 +181,9 @@ class CosndAlpha(TargetFunction):
             raise NotImplementedError("For Cosndalpha")
 
         if a1 is None:
-            a1 = self.xmax[-self._npar]
+            a1 = self.xmax[-1]
         if a2 is None:
-            a2 = self.xmax[-1]
+            a2 = self.xmax[-self._npar]
 
         # Take only the x-part of the integration limits
         xmin = xmin[: self._nx]
@@ -193,7 +193,7 @@ class CosndAlpha(TargetFunction):
         if self.ndim == 2:
             extra = [a1]
         elif self.ndim > 3:
-            extra = [a1, a2]
+            extra = [a2, a1]
 
         fun = lambda *x: self(list(x) + extra)
 
