@@ -269,7 +269,7 @@ Circuit summary:
 
         return res * GEN_EIGENVAL**nmarg
 
-    def forward_pass(self, xarr, marginalize_over=None):
+    def forward_pass(self, xarr, derivate_ds=None):
         """Forward pass of the variational observable.
         This entails a parameter shift rule shift around the parameters xarr
         The number of dimension to derivate can be controlled via the nderivatives parameter
@@ -278,14 +278,14 @@ Circuit summary:
         y = self._upload_parameters(xarr)
         eigenfactor = self._eigenfactor
 
-        if marginalize_over is not None:
+        if derivate_ds is not None:
             # Remove dimension information from the variables we don't want to derivate
             # i.e., all except the marginalized
             for var in y:
-                if (var.dimension + 1) not in marginalize_over:
+                if (var.dimension + 1) not in derivate_ds:
                     var.dimension = -99
 
-            eigenfactor = GEN_EIGENVAL ** len(marginalize_over)
+            eigenfactor = GEN_EIGENVAL ** len(derivate_ds)
 
         if DERIVATIVE:
             shifts = _recursive_shifts([y], index=self.nderivatives)
