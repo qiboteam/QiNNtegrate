@@ -171,7 +171,7 @@ class CosndAlpha(TargetFunction):
         a2 = 1.0 if self._npar == 1 else xarr[-2]
         x1 = xarr[0]
 
-        arg = x1*a2 + np.sum(xarr[1:self._nx]) + a1
+        arg = x1 * a2 + np.sum(xarr[1 : self._nx]) + a1
         return np.cos(arg)
 
     def integral(
@@ -220,6 +220,75 @@ class CosndAlpha(TargetFunction):
     @property
     def nderivatives(self):
         return self._nx
+
+
+class ToyTarget(Cosnd):
+    """
+    Simple target to easily demonstrate how the methodologies outlined in the paper can be used to produce
+    alpha-dependent differential distributions.
+    As well as error estimation.
+
+    It's similar to the `cosnd` target without the integration of the last dimension
+
+    The target function is:
+        cos( \sum{x_{i}} + alpha )
+    """
+
+    override = True
+
+    def build(self):
+        if self.ndim < 2:
+            raise ValueError("This target needs at least two dimensions: a1, x1")
+
+        if len(self._parameters) == self.ndim + 1:
+            raise ValueError(
+                "This function doesn't accept a parameter for the last dimension (which is not integrated over)"
+            )
+
+        super().build()
+
+        # Add parameters specific to this target
+        self._npar = 1
+        self._nx = self.ndim - self._npar
+
+    def integral(self, xmin, xmax, a1=None, *kwargs):
+        if a1 is None:
+            a1 = self.xmax[-1]
+
+        # Take only the x-part of the integration limits
+        xmin = xmin[: self._nx]
+        xmax = xmax[: self._nx]
+        ranges = list(zip(xmin, xmax))
+
+        fun = lambda *x: self(list(x) + [a1])
+
+        return nquad(fun, ranges)
+
+    @property
+    def xmin(self):
+        return [0.0] * self._nx + [0.0]
+
+    @property
+    def xmax(self):
+        return [3.5] * self._nx + [5.0]
+
+    @property
+    def nderivatives(self):
+        return self._nx
+
+    @property
+    def xgrid(self):
+        amin = self.xmin[-1]
+        amax = self.xmax[-1]
+        xmin = np.array(self.xmin[: self._nx])
+        xmax = np.array(self.xmax[: self._nx])
+
+        npoints = int(1e2)
+        nr = 20
+        xx = np.random.rand(npoints, self._nx) * (xmax - xmin) + xmin
+        aa = np.linspace(amin, amax, npoints // nr)
+        cc = [*xx.T, np.tile(aa, nr)]
+        return np.vstack(cc).T
 
 
 class Sind(Cosnd):
@@ -403,4 +472,5 @@ available_targets = {
     "uquark": UquarkPDF,
     "uquark2d": UquarkPDF2d,
     "cosndalpha": CosndAlpha,
+    "toy": ToyTarget,
 }

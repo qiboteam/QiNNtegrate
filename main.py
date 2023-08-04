@@ -98,12 +98,18 @@ def plot_uquark(predictor, target, xmin, xmax, output_folder, npoints=50):
                 tag = f"n{i}"
 
             plt.plot(
-                xlin, ypred, label=f"Approximation", linewidth=2.5, alpha=0.6, ls="-", color="red"
+                xlin,
+                ypred,
+                label=f"Approximation {tag}",
+                linewidth=2.5,
+                alpha=0.6,
+                ls="-",
+                color="red",
             )
             plt.plot(
                 xlin,
                 np.stack(ytrue),
-                label=r"Target $u$-quark",
+                label=f"Target $u$-quark {tag}",
                 linewidth=1.5,
                 alpha=0.8,
                 ls="--",
