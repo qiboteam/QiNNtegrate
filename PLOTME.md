@@ -1,5 +1,6 @@
 ### `cosndalpha` plot
 
+Move to `~/plotscripts/`.
 Set `ALPHA=1` in `quanting.py`.
 Select a target value for `alpha` and run the following:
 ```sh
@@ -8,6 +9,7 @@ python plot_toy.py --output_folder toytarget/ --xmax 3 --error --alpha 1.25 --np
 
 ### `uquark2d` plot
 
+Move to `~/plotscripts/`.
 Set `ALPHA=1` in `quanting.py` and run the following:
 ```sh
 python plot_uquark2d.py --nshots_predictions 1000000 --n_predictions 100 --n_points 20 --output_folder uquark2d_0.001to0.7_lbfgs/
