@@ -18,6 +18,7 @@ from quanting import qPDF_v2
 from target import UquarkPDF2d
 
 
+
 def get_primitive(obs, xmin, xmax, scaled_q):
     upper_limit = [xmax, scaled_q]
     lower_limit = [xmin, scaled_q]
@@ -77,6 +78,9 @@ for qscaled in qscaled_points:
     target_vals.append(res)
     errors.append(error)
 
+np.save(file=args.output_folder/"target_labels", arr=target_vals)
+np.save(file=args.output_folder/"target_errors", arr=errors)
+
 print("Calculating predictions using qinntegrate procedure.")
 print(f"The final prediction is the mean over {args.n_predictions}.")
 for exp in range(args.n_predictions):
@@ -103,34 +107,34 @@ std_circuit_vals = np.std(circuit_vals, axis=0)
 mean_rr = np.mean(rr, axis=0)
 std_rr = np.std(rr, axis=0)
 
-plt.figure(figsize=(8, 5))
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4.5, 4.5*6/8), sharex=True, gridspec_kw={"height_ratios": [5, 3]})
+plt.rcParams['xtick.bottom'] = True
+plt.rcParams['ytick.left'] = True
 
-fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, gridspec_kw={"height_ratios": [5, 3]})
-
-ax1.plot(q2points, target_vals, color="black", alpha=0.7, label="Target result")
-ax1.plot(q2points, mean_circuit_vals, color="red", alpha=0.7, label="Approximation")
+ax1.plot(q2points, mean_circuit_vals, color="#ff6150", alpha=0.9, lw=2.5, label="Approximation")
 ax1.fill_between(
     q2points,
     mean_circuit_vals - std_circuit_vals,
     mean_circuit_vals + std_circuit_vals,
-    color="red",
+    color="#ff6150",
     hatch="//",
-    alpha=0.15,
+    alpha=0.35,
 )
+ax1.plot(q2points, target_vals, color="black", alpha=0.7, lw=1.5, ls="--", label="Target result")
 ax1.set_ylabel(r"$I_u(Q^2)$")
 ax1.yaxis.set_major_formatter(FormatStrFormatter("%.3f"))
+ax1.set_title(r"Estimates of $I_u(Q^2)$")
 
 
-ax2.plot(q2points, mean_rr, color="blue", alpha=0.7, label="Ratio values")
-ax2.fill_between(q2points, mean_rr - std_rr, mean_rr + std_rr, color="blue", hatch="//", alpha=0.15)
-ax2.hlines(1, np.min(q2points), np.max(q2points), lw=1.5, color="black")
+ax2.plot(q2points, mean_rr, color="royalblue", lw=2.5, alpha=0.9, label="Ratio values")
+ax2.fill_between(q2points, mean_rr - std_rr, mean_rr + std_rr, color="royalblue", hatch="//", alpha=0.35)
+ax2.hlines(1, np.min(q2points), np.max(q2points), lw=1.5, color="black", ls='--', alpha=0.7)
 ax2.set_ylabel("Ratio")
 ax2.set_xlabel(r"$Q^2$ (GeV$^2$)")
 ax2.yaxis.set_major_formatter(FormatStrFormatter("%.3f"))
 
 fig.subplots_adjust(wspace=0, hspace=0)
-fig.legend(bbox_to_anchor=(0.9, 0.88))
-fig.suptitle(r"Estimates of $I_u(Q^2)$")
+fig.legend(bbox_to_anchor=(0.9, 0.88), framealpha=1)
 
-fig.savefig("uquark2d.png")
-fig.savefig("uquark2d.pdf")
+fig.savefig("uquark2d.png", bbox_inches="tight")
+fig.savefig("uquark2d.pdf", bbox_inches="tight")

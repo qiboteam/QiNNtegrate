@@ -53,12 +53,16 @@ def valid_optimizer(val_raw):
     return valid_this(val_raw, available_optimizers, "Optimizer")
 
 
+def ratio(pred, target, eps=1e-3):
+    tts = np.where(np.abs(target) > eps, target, np.sign(target) * eps)
+    ccs = np.where(np.abs(pred) > eps, pred, np.sign(pred) * eps)
+    return np.abs(tts / ccs)
+
+
 def plot_uquark(predictor, target, xmin, xmax, output_folder, npoints=50):
     """Plot botht he predictor and the target"""
     xmin = np.array(xmin)
     xmax = np.array(xmax)
-
-    # plt.figure(figsize=(8,5))
 
     for d in range(target.ndim):
         xaxis_name = target.dimension_name(d)
@@ -97,34 +101,51 @@ def plot_uquark(predictor, target, xmin, xmax, output_folder, npoints=50):
             else:
                 tag = f"n{i}"
 
-            plt.plot(
+
+            rr = ratio(ypred, ytrue)
+
+            # plotting
+            fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(4.5, 4.5*6/8), gridspec_kw={"height_ratios": [5, 2]})
+
+            ax1.plot(
                 xlin,
                 ypred,
                 label=f"Approximation {tag}",
                 linewidth=2.5,
-                alpha=0.6,
+                alpha=0.9,
                 ls="-",
-                color="red",
+                color="#ff6150",
             )
-            plt.plot(
+            ax1.plot(
                 xlin,
                 np.stack(ytrue),
                 label=f"Target $u$-quark {tag}",
                 linewidth=1.5,
-                alpha=0.8,
+                alpha=0.7,
                 ls="--",
                 color="black",
             )
+            ax1.grid(False)
+            ax1.set_xscale(xaxis_scale)
+            ax1.set_ylabel(r"$u\,f(x)$")
+            ax1.set_title(rf"$u$-quark PDF fit", fontsize=12)
 
-        plt.legend()
+            ax2.plot(xlin, rr, color="royalblue", lw=2.5, alpha=0.9, label="Error")
+            ax2.hlines(1, 1e-4, 1, color="black", ls="--", lw=1.5, alpha=0.7)
+            ax2.grid(False)
+            ax2.set_xscale(xaxis_scale)
+            ax2.set_xlabel(r"x")
+            ax2.set_ylabel("Ratio")
+            ax2.set_ylim(0.97, 1.03)
 
-        plt.grid(True)
-        plt.xscale(xaxis_scale)
-        # plt.title(f"Integrand fit, dependence on {xaxis_name}")
-        plt.xlabel(rf"${xaxis_name}$")
-        plt.xlabel(r"x")
-        plt.ylabel(r"$u\,f(x)$")
-        plt.savefig(output_folder / f"output_plot_d{d+1}.pdf")
+            plt.rcParams['xtick.bottom'] = True
+            plt.rcParams['ytick.left'] = True
+            
+            fig.subplots_adjust(wspace=0, hspace=0)
+            fig.legend(bbox_to_anchor=(0.55, 0.58), framealpha=1)
+
+        
+        plt.savefig(output_folder / f"uquark1d.pdf", bbox_inches="tight")
         plt.close()
 
 
@@ -437,7 +458,7 @@ if __name__ == "__main__":
     target_result, err = target_fun.integral(xmin, xmax)
     print(f"The target result for the integral of [{target_fun}] is {target_result:.4} +- {err:.4}")
 
-    plot_integrand(observable, target_fun, xmin, xmax, output_folder)
+    plot_uquark(observable, target_fun, xmin, xmax, output_folder)
 
     print(f"Saving results to {output_folder}\n")
 
