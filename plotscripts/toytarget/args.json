@@ -1,36 +1,35 @@
 {
  "xmin": [
-  -0.3,
-  -0.3,
-  -0.3,
-  -0.3
+  0.0,
+  0.0,
+  0.0,
+  0.0
  ],
  "xmax": [
   3.5,
   3.5,
   3.5,
-  3.5
+  5.0
  ],
- "jobs": 54,
- "target": "cosnd",
+ "jobs": 18,
+ "target": "toy",
  "parameters": [
   1.0,
   1.0,
   2.0,
-  0.5,
-  0.25
+  0.5
  ],
  "ndim": 4,
  "ansatz": "goodscaling",
  "nqubits": 2,
  "layers": 2,
  "nshots": null,
- "maxiter": 50,
- "npoints": 200,
+ "maxiter": 200,
+ "npoints": 500,
  "padding": false,
  "absolute": true,
  "optimizer": "lbfgs",
  "nruns": 1,
- "FinalResult": -13.13726860815343,
- "TargetResult": -13.23603299555019
+ "FinalResult": -0.2690985261249652,
+ "TargetResult": -0.2735445773659666
 }

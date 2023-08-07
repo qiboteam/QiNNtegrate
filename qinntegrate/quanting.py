@@ -14,7 +14,7 @@ set_backend("numpy")
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
 DERIVATIVE = True
-ALPHA = 1.0 
+ALPHA = 1.0
 
 
 def _recursive_shifts(arrays, index=1, s=SHIFT):
@@ -98,7 +98,16 @@ class BaseVariationalObservable:
     In this case the inputs of the function are injected in the `ndim` first parameters.
     """
 
-    def __init__(self, nqubits=3, nlayers=3, ndim=1, nshots=None, initial_state=None, verbose=True):
+    def __init__(
+        self,
+        nqubits=3,
+        nlayers=3,
+        ndim=1,
+        nshots=None,
+        initial_state=None,
+        verbose=True,
+        nderivatives=None,
+    ):
         self._ndim = ndim
         self._nqubits = nqubits
         self._nlayers = nlayers
@@ -107,7 +116,10 @@ class BaseVariationalObservable:
         self._observable = None
         self._variational_params = []
         self._initial_state = initial_state
-        self.nderivatives = ndim  # By default, derive all dimensions
+        if nderivatives is None:
+            self.nderivatives = ndim  # By default, derive all dimensions
+        else:
+            self.nderivatives = nderivatives
         self.pid = os.getpid()  # Useful information when multiprocessing
 
         # Set the reuploading indexes
@@ -257,7 +269,7 @@ Circuit summary:
 
         return res * GEN_EIGENVAL**nmarg
 
-    def forward_pass(self, xarr, marginalize_over=None):
+    def forward_pass(self, xarr, derivate_ds=None):
         """Forward pass of the variational observable.
         This entails a parameter shift rule shift around the parameters xarr
         The number of dimension to derivate can be controlled via the nderivatives parameter
@@ -266,14 +278,14 @@ Circuit summary:
         y = self._upload_parameters(xarr)
         eigenfactor = self._eigenfactor
 
-        if marginalize_over is not None:
+        if derivate_ds is not None:
             # Remove dimension information from the variables we don't want to derivate
             # i.e., all except the marginalized
             for var in y:
-                if (var.dimension + 1) not in marginalize_over:
+                if (var.dimension + 1) not in derivate_ds:
                     var.dimension = -99
 
-            eigenfactor = GEN_EIGENVAL ** len(marginalize_over)
+            eigenfactor = GEN_EIGENVAL ** len(derivate_ds)
 
         if DERIVATIVE:
             shifts = _recursive_shifts([y], index=self.nderivatives)
@@ -590,11 +602,17 @@ available_ansatz = {
 
 
 #### Pooling management
-def initialize_pool(observable_class, nqubits, nlayers, ndim, nshots):
+def initialize_pool(observable_class, nqubits, nlayers, ndim, nshots, nderivatives):
     global my_ansatz
     my_ansatz = observable_class(
-        nqubits=nqubits, nlayers=nlayers, ndim=ndim, nshots=nshots, verbose=False
+        nqubits=nqubits,
+        nlayers=nlayers,
+        ndim=ndim,
+        nshots=nshots,
+        verbose=False,
+        nderivatives=nderivatives,
     )
+    return my_ansatz
 
 
 def worker_set_parameters(parameters, running_pool):
@@ -622,8 +640,9 @@ class ObservablePool:
         self._ansatz = pool.map(worker_get_ansatz, [None])[0]
         self._ansatz.print_model()
         self._ret = []
-        self._manager = Manager()
-        self._shr = self._manager.list()
+        if self._nprocesses > 1:
+            self._manager = Manager()
+            self._shr = self._manager.list()
 
     # Pooled calls
     def set_parameters(self, parameters):
@@ -631,6 +650,8 @@ class ObservablePool:
 
         # Make sure that the main process ansatz has the right parameters
         self._ansatz.set_parameters(parameters)
+        if self._nprocesses == 1:
+            return
 
         # Now prepare a list with locks
         for _ in range(self._nprocesses):
@@ -667,17 +688,36 @@ class ObservablePool:
 
     def __del__(self):
         """Liberate processes and memory"""
-        del self._shr
-        self._manager.shutdown()
-        self._pool.terminate()
+        if self._nprocesses > 1:
+            del self._shr
+            self._manager.shutdown()
+            self._pool.terminate()
 
 
-def generate_ansatz_pool(observable_class, nshots=None, nqubits=1, nlayers=1, ndim=1, nprocesses=1):
+class FakePool:
+    _processes = 1
+
+    def __init__(self, initargs=(), **kwargs):
+        self._ansatz = initialize_pool(*initargs)
+
+    def map(self, function, *args):
+        if function.__name__ == "worker_get_ansatz":
+            return [self._ansatz]
+
+
+def generate_ansatz_pool(
+    observable_class, nshots=None, nqubits=1, nlayers=1, ndim=1, nprocesses=1, nderivatives=None
+):
     """Generate a pool of ansatz"""
-    pool = Pool(
+    if nprocesses == 1:
+        pool_class = FakePool
+    else:
+        pool_class = Pool
+
+    pool = pool_class(
         processes=nprocesses,
         initializer=initialize_pool,
-        initargs=(observable_class, nqubits, nlayers, ndim, nshots),
+        initargs=(observable_class, nqubits, nlayers, ndim, nshots, nderivatives),
     )
 
     return ObservablePool(pool)
