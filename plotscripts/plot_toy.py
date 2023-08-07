@@ -66,9 +66,8 @@ def ratio(pred, target, eps=1e-3):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
-        "--output_folder", help="Output folder where to read the data from", type=Path
+        "--data_folder", help="Output folder where to read the data from", type=Path
     )
-
     parser.add_argument("--xmin", help="Lower integration limit", type=float, default=0)
     parser.add_argument("--xmax", help="Upper integration limit", type=float, default=np.pi / 2)
     parser.add_argument("--npoints", help="How many points to plot", type=int, default=15)
@@ -84,13 +83,13 @@ if __name__ == "__main__":
 
     npoints = args.npoints
 
-    json_file = args.output_folder / "args.json"
+    json_file = args.data_folder / "args.json"
 
     # Get all possible weights in this output folder
-    weights = [np.load(args.output_folder / "best_p.npy")]
+    weights = [np.load(args.data_folder / "best_p.npy")]
     files = []
     if args.error:
-        for weight_file in args.output_folder.glob("best_p_*.npy"):
+        for weight_file in args.data_folder.glob("best_p_*.npy"):
             files.append(weight_file)
             weights.append(np.load(weight_file))
 

@@ -1,18 +1,17 @@
-### `cosndalpha` plot
+The scripts in this folder can be used to reproduced some of the plots in arxiv/23XXXX
 
-Move to `~/plotscripts/`.
-Set `ALPHA=1` in `quanting.py`.
+### Toy model
+
 Select a target value for `alpha` and run the following:
 ```sh
-python plot_toy.py --output_folder toytarget/ --xmax 3 --error --alpha 1.25 --npoints 16
+python plot_toy.py --data_folder toytarget/ --xmax 3 --error --alpha 1.25 --npoints 16
 ```
 
 ### `uquark2d` plot
 
-Move to `~/plotscripts/`.
 Set `ALPHA=1` in `quanting.py` and run the following:
 ```sh
-python plot_uquark2d.py --nshots_predictions 1000000 --n_predictions 100 --n_points 20 --output_folder uquark2d_0.001to0.7_lbfgs/
+python plot_uquark2d.py --nshots_predictions 1000000 --n_predictions 100 --n_points 20 --data_folder uquark2d_0.001to0.7_lbfgs/
 ```
 
 

@@ -55,7 +55,7 @@ def relative_error(x, y):
 
 
 parser = ArgumentParser()
-parser.add_argument("--output_folder", help="Output folder where to read the data from", type=Path)
+parser.add_argument("--data_folder", help="Output folder where to read the data from", type=Path)
 
 parser.add_argument("--xmin", help="Lower integration limit", type=float, default=0)
 parser.add_argument("--xmax", help="Upper integration limit", type=float, default=np.pi / 2)
@@ -67,8 +67,8 @@ parser.add_argument(
 args = parser.parse_args()
 npoints = args.npoints
 
-json_file = args.output_folder / "args.json"
-weight_file = args.output_folder / "best_p.npy"
+json_file = args.data_folder / "args.json"
+weight_file = args.data_folder / "best_p.npy"
 
 json_info = json.loads(json_file.read_text(encoding="utf-8"))
 ndim = json_info["ndim"]

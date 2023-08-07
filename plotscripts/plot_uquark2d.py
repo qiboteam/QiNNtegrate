@@ -32,7 +32,7 @@ def relative_error(x, y):
 
 
 parser = ArgumentParser()
-parser.add_argument("--output_folder", help="Output folder where to read the data from", type=Path)
+parser.add_argument("--data_folder", help="Output folder where to read the data from", type=Path)
 
 # number of shots for each prediction
 parser.add_argument(
@@ -52,8 +52,8 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-json_file = args.output_folder / "args.json"
-weight_file = args.output_folder / "best_p.npy"
+json_file = args.data_folder / "args.json"
+weight_file = args.data_folder / "best_p.npy"
 
 json_info = json.loads(json_file.read_text(encoding="utf-8"))
 
@@ -78,8 +78,8 @@ for qscaled in qscaled_points:
     target_vals.append(res)
     errors.append(error)
 
-np.save(file=args.output_folder/"target_labels", arr=target_vals)
-np.save(file=args.output_folder/"target_errors", arr=errors)
+np.save(file=args.data_folder/"target_labels", arr=target_vals)
+np.save(file=args.data_folder/"target_errors", arr=errors)
 
 print("Calculating predictions using qinntegrate procedure.")
 print(f"The final prediction is the mean over {args.n_predictions}.")
