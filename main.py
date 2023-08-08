@@ -17,6 +17,7 @@ from qinntegrate.target import available_targets
 TARGETS = list(available_targets.keys())
 ANSATZS = list(available_ansatz.keys())
 OPTIMIZ = list(available_optimizers.keys())
+nicered = "#ff6150"
 
 
 def check_qbits(var):
@@ -65,7 +66,6 @@ def plot_uquark(predictor, target, xmin, xmax, output_folder, npoints=50):
     xmax = np.array(xmax)
 
     for d in range(target.ndim):
-        xaxis_name = target.dimension_name(d)
         xaxis_scale = "log"  # target.dimension_scale(d)
         # Create a linear space in the dimension we are plotting
         xlin = np.linspace(xmin[d], xmax[d], npoints)
@@ -129,8 +129,9 @@ def plot_uquark(predictor, target, xmin, xmax, output_folder, npoints=50):
             ax1.set_xscale(xaxis_scale)
             ax1.set_ylabel(r"$u\,f(x)$")
             ax1.set_title(rf"$u$-quark PDF fit", fontsize=12)
+            fig.legend(bbox_to_anchor=(0.55, 0.58), framealpha=1)
 
-            ax2.plot(xlin, rr, color="royalblue", lw=2.5, alpha=0.9, label="Error")
+            ax2.plot(xlin, rr, color=nicered, lw=2.5, alpha=0.9)
             ax2.hlines(1, 1e-4, 1, color="black", ls="--", lw=1.5, alpha=0.7)
             ax2.grid(False)
             ax2.set_xscale(xaxis_scale)
@@ -142,7 +143,6 @@ def plot_uquark(predictor, target, xmin, xmax, output_folder, npoints=50):
             plt.rcParams['ytick.left'] = True
             
             fig.subplots_adjust(wspace=0, hspace=0)
-            fig.legend(bbox_to_anchor=(0.55, 0.58), framealpha=1)
 
         
         plt.savefig(output_folder / f"uquark1d.pdf", bbox_inches="tight")

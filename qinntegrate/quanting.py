@@ -14,7 +14,7 @@ set_backend("numpy")
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
 DERIVATIVE = True
-ALPHA = 1.0
+ALPHA = 0.92 # alpha for the x^{alpha} factor of the PDF
 
 
 def _recursive_shifts(arrays, index=1, s=SHIFT):

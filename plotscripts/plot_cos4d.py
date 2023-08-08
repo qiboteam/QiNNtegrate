@@ -61,7 +61,10 @@ parser.add_argument("--xmin", help="Lower integration limit", type=float, defaul
 parser.add_argument("--xmax", help="Upper integration limit", type=float, default=np.pi / 2)
 parser.add_argument("--npoints", help="How many points to plot", type=int, default=15)
 parser.add_argument(
-    "--differential", help="Which dimension do you want to have the differential distribution for", default=1, type=int
+    "--differential",
+    help="Which dimension do you want to have the differential distribution for",
+    default=1,
+    type=int,
 )
 
 args = parser.parse_args()

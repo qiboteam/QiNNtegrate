@@ -19,5 +19,5 @@ python plot_uquark2d.py --nshots_predictions 1000000 --n_predictions 100 --n_poi
 
 Set `ALPHA=0.92` in `quanting.py` and run the following:
 ```sh
-python main.py --load plotscripts/uquark_alpha0.92/best_p.npy --layers 4 --nqubits 1 --ndim 1 --ansatz qpdf_iqm5q --maxiter 0 --target uquark --nshots 1000 --nruns 1 -o uquark1d -j 1 --mitigation true --npoints_plot 20
+python main.py --load plotscripts/uquark_alpha0.92/best_p.npy --layers 4 --nqubits 1 --ndim 1 --ansatz qpdf --maxiter 0 --target uquark -o uquark1d -j 1
 ```
