@@ -137,6 +137,26 @@ class Cosnd(TargetFunction):
 
     def __repr__(self):
         return f"cos{self.ndim}d"
+    
+
+class HardwareTarget(TargetFunction):
+    """Hardware target function."""
+
+    def build(self):
+        # Use the parameters in self._parameters for the first a_n
+        # and the rest fill it with ones
+        missing_par = (self.ndim + 2) - len(self._parameters)
+        if missing_par > 0:
+            fill_one = np.ones(missing_par)
+            fill_one[-1] = 0
+            self._parameters = np.concatenate([self._parameters, fill_one])
+
+    def __call__(self, xarr):
+        arg = np.sum(np.array(xarr) * self._parameters[1:-1]) + self._parameters[-1]
+        return np.sin(3*arg) * self._parameters[0]
+
+    def __repr__(self):
+        return f"cos{self.ndim}d"   
 
 
 class CosndAlpha(TargetFunction):
@@ -473,4 +493,5 @@ available_targets = {
     "uquark2d": UquarkPDF2d,
     "cosndalpha": CosndAlpha,
     "toy": ToyTarget,
+    "hardware": HardwareTarget,
 }

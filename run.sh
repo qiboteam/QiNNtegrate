@@ -1,3 +1,3 @@
 #!/bin/sh
 
-python main.py --optimizer lbfgs --absolute --npoints 100 --layers 2 --nqubits 2 --ndim 4 --target cosnd --ansatz goodscaling -j 16
+python main.py --optimizer lbfgs --absolute --npoints 50 --layers 1 --maxiter 100 --nqubits 1 --ndim 1 --target hardware --ansatz goodscaling -j 16
