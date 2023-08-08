@@ -14,7 +14,7 @@ set_backend("numpy")
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
 DERIVATIVE = True
-ALPHA = 1.0
+ALPHA = 1.0 
 
 
 def _recursive_shifts(arrays, index=1, s=SHIFT):
@@ -359,7 +359,7 @@ class DeepReuploading(BaseVariationalObservable):
         circuit = models.Circuit(self._nqubits)
 
         # At first we build up superposition for each qubit
-        circuit.add((gates.H(q) for q in range(self._nqubits)))
+        # circuit.add((gates.H(q) for q in range(self._nqubits)))
         # then we add parametric gates
         for _ in range(self._nlayers):
             for q in range(self._nqubits):
