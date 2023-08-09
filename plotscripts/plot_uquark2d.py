@@ -13,6 +13,7 @@ import numpy as np
 
 # put this in
 sys.path.append("../qinntegrate")
+sys.path.append("../")
 
 from quanting import qPDF_v2
 from target import UquarkPDF2d
@@ -74,18 +75,18 @@ if __name__ == "__main__":
     circuit_vals = np.zeros((args.n_predictions, args.n_points))
     errors = []
 
-    print("Evaluating targets")
-    for qscaled, q2 in zip(qscaled_points, q2points):
-        print(f"Integrating the real PDF for q={np.sqrt(q2)}")
-        res, error = updf.integral(xmin, xmax, qscaled, verbose=False, exact=True)
-        target_vals.append(res)
-        errors.append(error)
+#     print("Evaluating targets")
+#     for qscaled, q2 in zip(qscaled_points, q2points):
+#         print(f"Integrating the real PDF for q={np.sqrt(q2)}")
+#         res, error = updf.integral(xmin, xmax, qscaled, verbose=False, exact=True)
+#         target_vals.append(res)
+#         errors.append(error)
 
-    np.save(file=args.data_folder / "target_labels", arr=target_vals)
-    np.save(file=args.data_folder / "target_errors", arr=errors)
+#     np.save(file=args.data_folder / "target_labels", arr=target_vals)
+#     np.save(file=args.data_folder / "target_errors", arr=errors)
 
-#     target_vals = np.load(args.data_folder / "target_labels.npy")
-#     target_errors = np.load(args.data_folder / "target_errors.npy")
+    target_vals = np.load(args.data_folder / "target_labels.npy")
+    target_errors = np.load(args.data_folder / "target_errors.npy")
 
     print("Calculating predictions using qinntegrate procedure.")
     print(f"The final prediction is the mean over {args.n_predictions}.")
