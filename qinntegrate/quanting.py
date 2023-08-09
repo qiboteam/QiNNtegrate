@@ -210,7 +210,7 @@ Circuit summary:
         y = []
         for d, (x, idxs) in enumerate(zip(xarr, self._reuploading_indexes)):
             for idx in idxs:
-                theta = self.parameters[idx]
+                theta = self._variational_params[idx]
                 y.append(_UploadedParameter(x, theta, idx, d))
         return y
 
