@@ -129,7 +129,7 @@ def plot_uquark(predictor, target, xmin, xmax, output_folder, npoints=50):
             ax1.set_xscale(xaxis_scale)
             ax1.set_ylabel(r"$u\,f(x)$")
             ax1.set_title(rf"$u$-quark PDF fit", fontsize=12)
-            fig.legend(bbox_to_anchor=(0.55, 0.58), framealpha=1)
+            fig.legend(bbox_to_anchor=(0.55, 0.52), framealpha=1)
 
             ax2.plot(xlin, rr, color=nicered, lw=2.5, alpha=0.9)
             ax2.hlines(1, 1e-4, 1, color="black", ls="--", lw=1.5, alpha=0.7)
