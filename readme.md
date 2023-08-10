@@ -12,8 +12,10 @@ It is not a library but rather a collection of scripts that uses the [Qibo](http
 ```
 
 ```
-usage: main.py [-h] [--xmin XMIN [XMIN ...]] [--xmax XMAX [XMAX ...]] [-o OUTPUT] [-l LOAD] [-j JOBS] [--target TARGET] [--parameters PARAMETERS [PARAMETERS ...]] [--ndim NDIM] [--ansatz ANSATZ]
-               [--nqubits NQUBITS] [--layers LAYERS] [--nshots NSHOTS] [--pdf_alpha PDF_ALPHA] [--maxiter MAXITER] [--npoints NPOINTS] [--padding] [--absolute] [--optimizer OPTIMIZER] [--nruns NRUNS]
+usage: main.py [-h] [--xmin XMIN [XMIN ...]] [--xmax XMAX [XMAX ...]] [-o OUTPUT] [-l LOAD] [-j JOBS]
+                [--target TARGET] [--parameters PARAMETERS [PARAMETERS ...]] [--ndim NDIM] [--ansatz ANSATZ]
+                [--nqubits NQUBITS] [--layers LAYERS] [--nshots NSHOTS] [--pdf_alpha PDF_ALPHA] [--maxiter MAXITER]
+                [--npoints NPOINTS] [--padding] [--absolute] [--optimizer OPTIMIZER] [--nruns NRUNS]
 
 options:
   -h, --help            show this help message and exit
@@ -27,13 +29,15 @@ options:
   -j JOBS, --jobs JOBS  Number of processes to utilize (default 4)
 
 Target function:
-  --target TARGET       Select target function, available: ['sin1d', 'cosnd', 'sind', 'lepage', 'uquark', 'uquark2d', 'cosndalpha', 'toy']
+  --target TARGET       Select target function, available:
+                  ['sin1d', 'cosnd', 'sind', 'lepage', 'uquark', 'uquark2d', 'cosndalpha', 'toy']
   --parameters PARAMETERS [PARAMETERS ...]
                         List of parameters for the target functions
   --ndim NDIM           Number of dimensions
 
 Circuit definition:
-  --ansatz ANSATZ       Circuit ansatz, please choose one among ['base', 'reuploading', 'deepup', 'verticup', 'qpdf', 'qpdf2q', 'goodscaling']
+  --ansatz ANSATZ       Circuit ansatz, please choose one among
+                      ['base', 'reuploading', 'deepup', 'verticup', 'qpdf', 'qpdf2q', 'goodscaling']
   --nqubits NQUBITS     Number of qubits for the VQE
   --layers LAYERS       Number of layers for the VQE
   --nshots NSHOTS       Number of shots for each < Z > evaluation
