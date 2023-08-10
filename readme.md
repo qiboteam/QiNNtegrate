@@ -13,9 +13,9 @@ It is not a library but rather a collection of scripts that uses the [Qibo](http
 
 ```
 usage: main.py [-h] [--xmin XMIN [XMIN ...]] [--xmax XMAX [XMAX ...]] [-o OUTPUT] [-l LOAD] [-j JOBS]
-                [--target TARGET] [--parameters PARAMETERS [PARAMETERS ...]] [--ndim NDIM] [--ansatz ANSATZ]
-                [--nqubits NQUBITS] [--layers LAYERS] [--nshots NSHOTS] [--pdf_alpha PDF_ALPHA] [--maxiter MAXITER]
-                [--npoints NPOINTS] [--padding] [--absolute] [--optimizer OPTIMIZER] [--nruns NRUNS]
+            [--target TARGET] [--parameters PARAMETERS [PARAMETERS ...]] [--ndim NDIM] [--ansatz ANSATZ]
+            [--nqubits NQUBITS] [--layers LAYERS] [--nshots NSHOTS] [--pdf_alpha PDF_ALPHA] [--maxiter MAXITER]
+            [--npoints NPOINTS] [--padding] [--absolute] [--optimizer OPTIMIZER] [--nruns NRUNS]
 
 options:
   -h, --help            show this help message and exit
@@ -49,8 +49,8 @@ Optimization definition:
   --npoints NPOINTS     Training points (default 500)
   --padding             Train the function beyond the integration limits
   --absolute            Don't normalize MSE by the size of the integrand
-  --optimizer OPTIMIZER
-                        Optimizers, available options: ['cma', 'bfgs', 'sgd', 'lbfgs', 'annealing', 'basinhopping']
+  --optimizer OPTIMIZER Optimizers, available options:
+                           ['cma', 'bfgs', 'sgd', 'lbfgs', 'annealing', 'basinhopping']
   --nruns NRUNS         Number of times the optimization is repeated
 
 ```
@@ -60,4 +60,5 @@ Some example commands:
 ```bash
 python main.py --parameters 1 2 3  --optimizer lbfgs --absolute --layers 2 --nqubits 2 -j 18 --ndim 4 --target toy --ansatz goodscaling --maxiter 200 -o output_folder
 python main.py --optimizer lbfgs --absolute --npoints 100 --layers 2 --nqubits 2 --ndim 4 --target cosnd --ansatz goodscaling -j 16
+python main.py --optimizer cma --npoints 50 --layers 1 --absolute --nqubits 1 --ndim 1 --nshots 1000 --target sin1d --ansatz deepup -j 8
 ```
