@@ -15,7 +15,7 @@ sys.path.append("../")
 
 from quanting import GoodScaling
 
-from main import _generate_limits
+from main import _generate_limits, nicered
 
 
 def get_primitive_target(parameters, xmin, xmax, xx, differential_in_d=1, alpha=0.0):
@@ -66,9 +66,8 @@ def ratio(pred, target, eps=1e-3):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
-        "--output_folder", help="Output folder where to read the data from", type=Path
+        "--data_folder", help="Output folder where to read the data from", type=Path
     )
-
     parser.add_argument("--xmin", help="Lower integration limit", type=float, default=0)
     parser.add_argument("--xmax", help="Upper integration limit", type=float, default=np.pi / 2)
     parser.add_argument("--npoints", help="How many points to plot", type=int, default=15)
@@ -84,13 +83,13 @@ if __name__ == "__main__":
 
     npoints = args.npoints
 
-    json_file = args.output_folder / "args.json"
+    json_file = args.data_folder / "args.json"
 
     # Get all possible weights in this output folder
-    weights = [np.load(args.output_folder / "best_p.npy")]
+    weights = [np.load(args.data_folder / "best_p.npy")]
     files = []
     if args.error:
-        for weight_file in args.output_folder.glob("best_p_*.npy"):
+        for weight_file in args.data_folder.glob("best_p_*.npy"):
             files.append(weight_file)
             weights.append(np.load(weight_file))
 
@@ -131,24 +130,21 @@ if __name__ == "__main__":
     c_p = circuit_vals + circuit_errs
     c_m = circuit_vals - circuit_errs
 
-    plt.figure(figsize=(8, 5))
-    plt.title(rf"$\alpa = {a}$")
-    plt.subplots(2, 1, sharex=True, gridspec_kw={"height_ratios": [5, 2]})
-
-    plt.subplot(2, 1, 1)
-    plt.plot(
-        xlin, circuit_vals, alpha=0.6, label="Approximation", color="red", linewidth=2.5, ls="-"
+    fig, (ax1, ax2) = plt.subplots(
+        2, 1, sharex=True, figsize=(4.5, 4.5 * 6 / 8), gridspec_kw={"height_ratios": [5, 2]}
     )
-    plt.plot(
-        xlin, target_vals, alpha=0.8, label="Target result", color="black", linewidth=1.5, ls="-."
+
+    ax1.set_title(rf"$\alpha = {a}$", fontsize=12)
+    ax1.plot(
+        xlin, circuit_vals, alpha=0.9, label="Approximation", color="#ff6150", linewidth=2.5, ls="-"
     )
-    plt.fill_between(xlin, c_m, c_p, color="red", hatch="//", alpha=0.15)
+    ax1.fill_between(xlin, c_m, c_p, color=nicered, hatch="//", alpha=0.25)
+    ax1.plot(
+        xlin, target_vals, alpha=0.7, label="Target result", color="black", linewidth=1.5, ls="-."
+    )
 
-    plt.ylabel(rf"$G(\alpha={a}, x_{dim_diff})$")
-    plt.legend()
-    plt.grid(True)
-
-    plt.subplot(2, 1, 2)
+    ax1.set_ylabel(rf"$I(\alpha={a}, x_{dim_diff})$")
+    ax1.grid(False)
 
     rr = ratio(circuit_vals, target_vals)
     r1 = ratio(c_p, target_vals)
@@ -156,15 +152,20 @@ if __name__ == "__main__":
 
     rp = np.maximum(r1, r2)
     rm = np.minimum(r1, r2)
+    fig.legend(bbox_to_anchor=(0.85, 0.88), framealpha=1)
 
-    plt.plot(xlin, rr, color="blue", alpha=0.7, lw=2.5, label="Error")
-    plt.fill_between(xlin, rm, rp, color="blue", hatch="//", alpha=0.15)
-    plt.ylim(0.93, 1.07)
-    plt.ylabel("Ratio")
-    plt.grid(True)
-    plt.subplots_adjust(wspace=0, hspace=0)
-    plt.xlabel(rf"$x_{dim_diff}$")
+    ax2.plot(xlin, rr, color=nicered, alpha=0.9, lw=2.5)
+    ax2.fill_between(xlin, rm, rp, color=nicered, hatch="//", alpha=0.35)
+    ax2.hlines(1, 0, 3, color="black", alpha=0.7, ls="-.", lw=1.5)
+    ax2.set_ylim(0.93, 1.07)
+    ax2.set_ylabel("Ratio")
+    ax2.grid(False)
+    ax2.set_xlabel(rf"$x_{dim_diff}$")
 
-    output_file = f"cos_on_x{dim_diff}.pdf"
-    plt.savefig(output_file)
+    plt.rcParams["xtick.bottom"] = True
+    plt.rcParams["ytick.left"] = True
+    fig.subplots_adjust(wspace=0, hspace=0)
+
+    output_file = f"cos_on_x{dim_diff}_alpha{a}.pdf"
+    plt.savefig(output_file, bbox_inches="tight")
     print(f"Plot saved to {output_file}, average ratio: {np.mean(rr)}")

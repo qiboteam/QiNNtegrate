@@ -55,20 +55,23 @@ def relative_error(x, y):
 
 
 parser = ArgumentParser()
-parser.add_argument("--output_folder", help="Output folder where to read the data from", type=Path)
+parser.add_argument("--data_folder", help="Output folder where to read the data from", type=Path)
 
 parser.add_argument("--xmin", help="Lower integration limit", type=float, default=0)
 parser.add_argument("--xmax", help="Upper integration limit", type=float, default=np.pi / 2)
 parser.add_argument("--npoints", help="How many points to plot", type=int, default=15)
 parser.add_argument(
-    "--differential", help="Which dimension do you want to have the differential distribution for", default=1, type=int
+    "--differential",
+    help="Which dimension do you want to have the differential distribution for",
+    default=1,
+    type=int,
 )
 
 args = parser.parse_args()
 npoints = args.npoints
 
-json_file = args.output_folder / "args.json"
-weight_file = args.output_folder / "best_p.npy"
+json_file = args.data_folder / "args.json"
+weight_file = args.data_folder / "best_p.npy"
 
 json_info = json.loads(json_file.read_text(encoding="utf-8"))
 ndim = json_info["ndim"]
