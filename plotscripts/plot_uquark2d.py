@@ -17,8 +17,8 @@ sys.path.append("../")
 
 from quanting import qPDF_v2
 from target import UquarkPDF2d
-from main import nicered
 
+from main import nicered
 
 
 def get_primitive(obs, xmin, xmax, scaled_q):
@@ -75,15 +75,15 @@ if __name__ == "__main__":
     circuit_vals = np.zeros((args.n_predictions, args.n_points))
     errors = []
 
-#     print("Evaluating targets")
-#     for qscaled, q2 in zip(qscaled_points, q2points):
-#         print(f"Integrating the real PDF for q={np.sqrt(q2)}")
-#         res, error = updf.integral(xmin, xmax, qscaled, verbose=False, exact=True)
-#         target_vals.append(res)
-#         errors.append(error)
+    #     print("Evaluating targets")
+    #     for qscaled, q2 in zip(qscaled_points, q2points):
+    #         print(f"Integrating the real PDF for q={np.sqrt(q2)}")
+    #         res, error = updf.integral(xmin, xmax, qscaled, verbose=False, exact=True)
+    #         target_vals.append(res)
+    #         errors.append(error)
 
-#     np.save(file=args.data_folder / "target_labels", arr=target_vals)
-#     np.save(file=args.data_folder / "target_errors", arr=errors)
+    #     np.save(file=args.data_folder / "target_labels", arr=target_vals)
+    #     np.save(file=args.data_folder / "target_errors", arr=errors)
 
     target_vals = np.load(args.data_folder / "target_labels.npy")
     target_errors = np.load(args.data_folder / "target_errors.npy")

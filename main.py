@@ -3,6 +3,8 @@
 """
 from argparse import ArgumentParser, ArgumentTypeError
 import copy
+import functools
+from inspect import signature
 import json
 from pathlib import Path
 import tempfile
@@ -42,12 +44,19 @@ def valid_target(val_raw):
     return valid_this(val_raw, available_targets, "Target")
 
 
-def valid_ansatz(val_raw):
+def valid_ansatz(val_raw, pdf_alpha=None, nderivatives=None):
     """Ensures that the selected ansatz exists
     Note that this does not check whether the number of dimensions/qbits/etc is acceptable
     acyclic graphs are beyond of the scope of this project...
     """
-    return valid_this(val_raw, available_ansatz, "Ansatz")
+    ansatz_class = valid_this(val_raw, available_ansatz, "Ansatz")
+
+    if pdf_alpha is not None:
+        if "alpha" not in signature(ansatz_class).parameters.keys():
+            raise ArgumentTypeError(f"pdf_alpha is not allowed for the ansatz {val_raw}")
+        ansatz_class = functools.partial(ansatz_class, alpha=pdf_alpha)
+
+    return ansatz_class
 
 
 def valid_optimizer(val_raw):
@@ -101,11 +110,12 @@ def plot_uquark(predictor, target, xmin, xmax, output_folder, npoints=50):
             else:
                 tag = f"n{i}"
 
-
             rr = ratio(ypred, ytrue)
 
             # plotting
-            fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(4.5, 4.5*6/8), gridspec_kw={"height_ratios": [5, 2]})
+            fig, (ax1, ax2) = plt.subplots(
+                2, 1, sharex=True, figsize=(4.5, 4.5 * 6 / 8), gridspec_kw={"height_ratios": [5, 2]}
+            )
 
             ax1.plot(
                 xlin,
@@ -139,12 +149,11 @@ def plot_uquark(predictor, target, xmin, xmax, output_folder, npoints=50):
             ax2.set_ylabel("Ratio")
             ax2.set_ylim(0.97, 1.03)
 
-            plt.rcParams['xtick.bottom'] = True
-            plt.rcParams['ytick.left'] = True
-            
+            plt.rcParams["xtick.bottom"] = True
+            plt.rcParams["ytick.left"] = True
+
             fig.subplots_adjust(wspace=0, hspace=0)
 
-        
         plt.savefig(output_folder / f"uquark1d.pdf", bbox_inches="tight")
         plt.close()
 
@@ -317,6 +326,11 @@ if __name__ == "__main__":
     )
     circ_parser.add_argument("--layers", help="Number of layers for the VQE", default=2, type=int)
     circ_parser.add_argument("--nshots", help="Number of shots for each < Z > evaluation", type=int)
+    circ_parser.add_argument(
+        "--pdf_alpha",
+        help="(only value for PDF ansatzs) value of alpha in the PDF prefactor",
+        type=float,
+    )
 
     opt_parser = parser.add_argument_group("Optimization definition")
     opt_parser.add_argument(
@@ -352,7 +366,7 @@ if __name__ == "__main__":
 
     # Update args
     a_target = valid_target(args.target)
-    a_ansatz = valid_ansatz(args.ansatz)
+    a_ansatz = valid_ansatz(args.ansatz, pdf_alpha=args.pdf_alpha)
     a_optimizer = valid_optimizer(args.optimizer)
 
     # doesn't make sense to perform more than one run if simulation is exact

@@ -14,7 +14,6 @@ set_backend("numpy")
 GEN_EIGENVAL = 0.5  # Eigenvalue for the parameter shift rule of rotations
 SHIFT = np.pi / (4.0 * GEN_EIGENVAL)
 DERIVATIVE = True
-ALPHA = 0.92 # alpha for the x^{alpha} factor of the PDF
 
 
 def _recursive_shifts(arrays, index=1, s=SHIFT):
@@ -435,15 +434,30 @@ class qPDFAnsatz(BaseVariationalObservable):
     Ref: https://arxiv.org/abs/2011.13934.
 
     It accepts two input variables (two dimensions) but only the first one will have the logarithm upload
+
+    To facilitate training the small-x region the behaviour can be controlled
+    with the parameter alpha (f(x) = x^alpha * C(x)) which defaults to 1.
+    Since all training has been done.
+    The large-x region behaviour instead has not been explored since the training
+    has been always contained to < 0.7 but in PDF fitting it is customary to also use a
+    factor of (1-x)^beta in this region.
+    Another possibility is to subtract the value of the circuit at one, i.e.,
+
+        f(x) = x^alpha * C(x) * (1-x)^beta
+
+    or
+
+        f(x) = x^alpha * (C(x) - C(1))
     """
 
-    def __init__(self, nqubits, nlayers, ndim=1, **kwargs):
+    def __init__(self, nqubits, nlayers, ndim=1, alpha=1.0, **kwargs):
         """In this specific model we are going to use a 1 qubit circuit."""
         if ndim > 2:
             raise ValueError("Only 2 dimensions can be fitted with qPDF")
         self._logarithm_variables = []
         super().__init__(nqubits, nlayers, ndim=ndim, **kwargs)
         self.nderivatives = 1  # The derivative is performed only on the first dimension
+        self._alpha = alpha
 
     def _upload_parameters(self, xarr):
         yarr = super()._upload_parameters(xarr)
@@ -487,12 +501,12 @@ class qPDFAnsatz(BaseVariationalObservable):
 
     def execute_with_x(self, xarr):
         ret = super().execute_with_x(xarr)
-        return xarr[0] ** ALPHA * ret
+        return xarr[0] ** self._alpha * ret
 
     def forward_pass(self, xarr):
         circ = super().execute_with_x(xarr)
         der = super().forward_pass(xarr)
-        return xarr[0] ** ALPHA * der + ALPHA * circ * xarr[0] ** (ALPHA - 1.0)
+        return xarr[0] ** self._alpha * der + self._alpha * circ * xarr[0] ** (self._alpha - 1.0)
 
 
 class qPDF_v2(qPDFAnsatz):

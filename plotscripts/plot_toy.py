@@ -17,6 +17,7 @@ from quanting import GoodScaling
 
 from main import _generate_limits, nicered
 
+
 def get_primitive_target(parameters, xmin, xmax, xx, differential_in_d=1, alpha=0.0):
     """Return the exact value of the integral of cos(parameters•x + alpha)
     The integral is performed in as many dimension as thge length of xmin/xmax
