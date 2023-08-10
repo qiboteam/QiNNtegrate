@@ -504,8 +504,12 @@ class qPDFAnsatz(BaseVariationalObservable):
         return xarr[0] ** self._alpha * ret
 
     def forward_pass(self, xarr):
-        circ = super().execute_with_x(xarr)
         der = super().forward_pass(xarr)
+        if self._alpha == 1:
+            # Avoid the extra execution of the circuit when alpha == 1
+            return xarr[0] * der
+
+        circ = super().execute_with_x(xarr)
         return xarr[0] ** self._alpha * der + self._alpha * circ * xarr[0] ** (self._alpha - 1.0)
 
 
