@@ -1,4 +1,4 @@
-The scripts in this folder can be used to reproduced some of the plots in arxiv/2308.05657
+The scripts in this folder can be used to reproduced some of the plots in [quant-ph/2308.05657](https://arxiv.org/abs/2308.05657)
 
 ### Toy model
 
