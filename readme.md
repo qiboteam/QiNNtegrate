@@ -1,3 +1,5 @@
+Code to reproduce the results for https://arxiv.org/abs/2308.05657
+
 # Numeric integration of arbitrary functions using quantum machine learning
 
 This project implements the ideas of [2211.02834](https://arxiv.org/abs/2211.02834)
