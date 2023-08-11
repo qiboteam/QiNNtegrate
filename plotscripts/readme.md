@@ -1,4 +1,4 @@
-The scripts in this folder can be used to reproduced some of the plots in arxiv/23XXXX
+The scripts in this folder can be used to reproduced some of the plots in arxiv/2308.05657
 
 ### Toy model
 
